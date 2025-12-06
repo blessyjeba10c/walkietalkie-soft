@@ -2,6 +2,7 @@
 #include "WalkieTalkie.h"
 #include "GPSManager.h"
 #include "GSMManager.h"
+#include "LoRaManager.h"
 #include "KeyboardManager.h"
 #include "BluetoothSerial.h"
 
@@ -150,7 +151,77 @@ void processCommand(Stream* stream, String command) {
         showCommandsTo(stream);
     }
     else if (command == "fallback") {
-        stream->println("🔄 Manual fallback triggered - implement your backup SMS method here");
+        stream->println("🔄 Testing communication fallback systems:");
+        
+        // Test DMR status
+        DMRModuleStatus dmrStatus = dmr.getModuleStatus();
+        bool dmrOk = (dmrStatus == STATUS_STANDBY || dmrStatus == STATUS_RECEIVING);
+        stream->print("📻 DMR Radio: ");
+        stream->println(dmrOk ? "✅ AVAILABLE" : "❌ UNAVAILABLE");
+        
+        // Test LoRa status  
+        bool loraOk = isLoRaAvailable();
+        stream->print("📡 LoRa: ");
+        stream->println(loraOk ? "✅ AVAILABLE" : "❌ UNAVAILABLE");
+        
+        // Test GSM status
+        bool gsmOk = (gsmState.initialized && gsmState.networkRegistered);
+        stream->print("📱 GSM: ");
+        stream->println(gsmOk ? "✅ AVAILABLE" : "❌ UNAVAILABLE");
+        
+        // Recommend communication method
+        stream->println();
+        if (dmrOk) {
+            stream->println("📻 Recommended: Use DMR radio (primary)");
+        } else if (loraOk) {
+            stream->println("📡 Recommended: Use LoRa (secondary fallback)");
+        } else if (gsmOk) {
+            stream->println("📱 Recommended: Use GSM SMS (final fallback)");
+        } else {
+            stream->println("🚨 WARNING: All communication methods unavailable!");
+        }
+    }
+    else if (command.startsWith("smartsend ")) {
+        String message = command.substring(10);
+        message.trim();
+        
+        if (message.length() > 0) {
+            bool sent = false;
+            
+            // Try DMR first (if we have a target ID)
+            if (!sent) {
+                stream->println("📻 Trying DMR radio...");
+                // Would need target ID - skip for now
+                stream->println("⏩ Skipping DMR (requires target ID)");
+            }
+            
+            // Try LoRa second
+            if (!sent && isLoRaAvailable()) {
+                stream->println("📡 Trying LoRa fallback...");
+                if (sendLoRaMessage("BROADCAST: " + message)) {
+                    stream->println("✅ Message sent via LoRa");
+                    sent = true;
+                }
+            }
+            
+            // Try GSM last
+            if (!sent && gsmState.initialized && gsmState.networkRegistered) {
+                stream->println("📱 Trying GSM fallback...");
+                if (gsmState.phoneNumber.length() > 0) {
+                    sendGSMFallbackSMS(gsmState.phoneNumber, message);
+                    stream->println("✅ Message sent via GSM SMS");
+                    sent = true;
+                } else {
+                    stream->println("❌ GSM phone number not configured");
+                }
+            }
+            
+            if (!sent) {
+                stream->println("❌ All communication methods failed");
+            }
+        } else {
+            stream->println("❌ Format: smartsend <message>");
+        }
     }
     else if (command == "smsinfo") {
         stream->println("\\n📊 SMS Status Info:");
@@ -381,6 +452,84 @@ void processCommand(Stream* stream, String command) {
             stream->println("❌ Format: gsmsms <number> <message>");
         }
     }
+    else if (command == "lorastatus") {
+        stream->println("\\n📡 LoRa Status:");
+        stream->print("Initialized: ");
+        stream->println(loraState.initialized ? "YES" : "NO");
+        stream->print("Available: ");
+        stream->println(loraState.available ? "YES" : "NO");
+        if (loraState.initialized) {
+            stream->print("Last RSSI: ");
+            stream->print(loraState.rssi);
+            stream->println(" dBm");
+            stream->print("Last SNR: ");
+            stream->print(loraState.snr);
+            stream->println(" dB");
+            stream->print("Frequency: 433 MHz");
+            stream->println();
+            if (loraState.lastMessage.length() > 0) {
+                stream->print("Last Message: ");
+                stream->println(loraState.lastMessage);
+            }
+        }
+    }
+    else if (command.startsWith("lorasms ")) {
+        String message = command.substring(8);
+        message.trim();
+        if (message.length() > 0) {
+            if (sendLoRaMessage(message)) {
+                stream->println("✅ LoRa message sent: " + message);
+            } else {
+                stream->println("❌ Failed to send LoRa message");
+            }
+        } else {
+            stream->println("❌ Format: lorasms <message>");
+        }
+    }
+    else if (command.startsWith("loragps ")) {
+        String targetStr = command.substring(8);
+        targetStr.trim();
+        if (targetStr.length() > 0) {
+            // Get GPS data
+            double lat, lon;
+            String status;
+            
+            if (gpsState.hasValidFix) {
+                lat = gpsState.latitude;
+                lon = gpsState.longitude;
+                status = "CURRENT";
+            } else if (gpsState.hasLastLocation) {
+                lat = gpsState.lastLatitude;
+                lon = gpsState.lastLongitude;
+                status = "LAST GPS";
+            } else {
+                lat = 29.938971327453903;
+                lon = 77.56449807342506;
+                status = "DEFAULT";
+            }
+            
+            // Create GPS message with soldier ID
+            String gpsMessage = "GPS " + status + ": ";
+            gpsMessage += wtState.soldierID + ",";
+            gpsMessage += String(lat, 6) + "," + String(lon, 6);
+            gpsMessage += " [TO:" + targetStr + "]";
+            
+            if (sendLoRaMessage(gpsMessage)) {
+                stream->print("📍 GPS sent via LoRa to ");
+                stream->print(targetStr);
+                stream->print(" (");
+                stream->print(status);
+                stream->print("): ");
+                stream->print(lat, 6);
+                stream->print(", ");
+                stream->println(lon, 6);
+            } else {
+                stream->println("❌ Failed to send GPS via LoRa");
+            }
+        } else {
+            stream->println("❌ Format: loragps <target_callsign>");
+        }
+    }
     else if (command == "i2cscan") {
         scanI2CDevices();
     }
@@ -448,6 +597,11 @@ void showCommandsTo(Stream* stream) {
     stream->println("  gsmsms <number> <msg>   - Send SMS via GSM directly");
     stream->println("  soldierid <id>          - Set soldier identification");
     stream->println();
+    stream->println("LoRa Communication:");
+    stream->println("  lorastatus              - Check LoRa module status");
+    stream->println("  lorasms <message>       - Send message via LoRa");
+    stream->println("  loragps <callsign>      - Send GPS location via LoRa");
+    stream->println();
     stream->println("Examples:");
     stream->println("  sms 123 Hello World");
     stream->println("  call 456");
@@ -460,6 +614,8 @@ void showCommandsTo(Stream* stream) {
     stream->println("  raw 68010101A9020110    - Send raw DMR frame");
     stream->println("  gsmphone +1234567890    - Set emergency fallback number");
     stream->println("  soldierid BSF67890      - Set soldier ID to BSF67890");
+    stream->println("  lorasms Hello World     - Send message via LoRa");
+    stream->println("  loragps Alpha_01        - Send GPS to Alpha_01 via LoRa");
     stream->println();
 }
 

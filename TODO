@@ -1,0 +1,18 @@
+- Lora
+    - Lora add encryption
+    - Lora Receive Acknowledge
+    - Lora Mesh Network
+- GSM
+    - GSM Encryption
+- Satcom
+    - TLE data add
+    - Look for current satellites
+    - Send data to other modules and complete it
+    - Configure rpi to take data, encrypt and send
+- Battery
+    - Integrate INA169
+    - Show battery percentage
+- Features
+    - Implement frequency hopping for anti jamming
+    - Power reduction by sleeping unwanted modules
+    - Improve interface look

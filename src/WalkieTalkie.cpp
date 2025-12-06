@@ -1,6 +1,7 @@
 #include "WalkieTalkie.h"
 #include "GPSManager.h"
 #include "GSMManager.h"
+#include "LoRaManager.h"
 #include "DisplayManager.h"
 #include "KeyboardManager.h"
 
@@ -19,6 +20,9 @@ void initializeSystem() {
     
     // Initialize GSM module
     initializeGSM();
+    
+    // Initialize LoRa module
+    initializeLoRa();
     
     // Initialize GPS
     initializeGPS();

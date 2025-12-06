@@ -359,16 +359,16 @@ void createEncryptionMenu() {
 }
 
 void createSMSMenu() {
-    displayState.currentMenu.title = "SMS & GSM";
+    displayState.currentMenu.title = "Communication";
     displayState.currentMenu.selectedItem = 0;
     displayState.currentMenu.itemCount = 8;
     
-    displayState.currentMenu.items[0] = {"Send SMS", "input_sms", false};
-    displayState.currentMenu.items[1] = {"Send GSM SMS", "input_gsmsms", false};
-    displayState.currentMenu.items[2] = {"Set GSM Phone", "input_gsmphone", false};
-    displayState.currentMenu.items[3] = {"Set Soldier ID", "input_soldierid", false};
-    displayState.currentMenu.items[4] = {"GSM Status", "gsmstatus", false};
-    displayState.currentMenu.items[5] = {"SMS Info", "smsinfo", false};
+    displayState.currentMenu.items[0] = {"Send SMS (DMR)", "input_sms", false};
+    displayState.currentMenu.items[1] = {"Send LoRa Msg", "input_lorasms", false};
+    displayState.currentMenu.items[2] = {"Send GSM SMS", "input_gsmsms", false};
+    displayState.currentMenu.items[3] = {"Smart Send", "input_smartsend", false};
+    displayState.currentMenu.items[4] = {"Set Soldier ID", "input_soldierid", false};
+    displayState.currentMenu.items[5] = {"Comm Status", "comm_status_menu", true};
     displayState.currentMenu.items[6] = {"GSM Control", "gsm_menu", true};
     displayState.currentMenu.items[7] = {"Back", "back", false};
 }
@@ -384,6 +384,18 @@ void createDebugMenu() {
     displayState.currentMenu.items[3] = {"Bluetooth Info", "bt", false};
     displayState.currentMenu.items[4] = {"Help", "help", false};
     displayState.currentMenu.items[5] = {"Back", "back", false};
+}
+
+void createCommStatusMenu() {
+    displayState.currentMenu.title = "Comm Status";
+    displayState.currentMenu.selectedItem = 0;
+    displayState.currentMenu.itemCount = 5;
+    
+    displayState.currentMenu.items[0] = {"DMR Status", "status", false};
+    displayState.currentMenu.items[1] = {"LoRa Status", "lorastatus", false};
+    displayState.currentMenu.items[2] = {"GSM Status", "gsmstatus", false};
+    displayState.currentMenu.items[3] = {"Fallback Test", "fallback", false};
+    displayState.currentMenu.items[4] = {"Back", "back", false};
 }
 
 void createSettingsMenu() {
@@ -478,6 +490,8 @@ void selectMenuItem() {
             createDebugMenu();
         } else if (selectedItem.action == "settings_menu") {
             createSettingsMenu();
+        } else if (selectedItem.action == "comm_status_menu") {
+            createCommStatusMenu();
         }
         
         showMenu();
@@ -531,6 +545,10 @@ void executeMenuAction(String action) {
             startMultiStepInput("gpsauto ", prompts, 2);
         } else if (action == "input_soldierid") {
             startInput("Enter Soldier ID:", "soldierid ");
+        } else if (action == "input_lorasms") {
+            startInput("Enter Message:", "lorasms ");
+        } else if (action == "input_smartsend") {
+            startInput("Enter Message:", "smartsend ");
         }
         return;
     }
@@ -597,6 +615,16 @@ void executeMenuAction(String action) {
     } else if (action == "bt") {
         captureCommandOutput("bt");
         processCommand(&SerialBT, "bt");
+        displayCapturedOutput();
+        displayState.inMenu = false;
+        delay(500);
+    } else if (action == "lorastatus") {
+        captureCommandOutput("lorastatus");
+        displayCapturedOutput();
+        displayState.inMenu = false;
+        delay(500);
+    } else if (action == "fallback") {
+        captureCommandOutput("fallback");
         displayCapturedOutput();
         displayState.inMenu = false;
         delay(500);

@@ -2,6 +2,7 @@
 #include "WalkieTalkie.h"
 #include "GPSManager.h"
 #include "GSMManager.h"
+#include "LoRaManager.h"
 #include "CommandProcessor.h"
 #include "DisplayManager.h"
 #include "KeyboardManager.h"
@@ -39,6 +40,9 @@ void loop() {
     
     // Check for incoming GSM SMS
     checkIncomingGSMSMS();
+    
+    // Check for incoming LoRa messages
+    checkLoRaMessages();
     
     // Handle Bluetooth commands
     handleBluetoothCommands();
