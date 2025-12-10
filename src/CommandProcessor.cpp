@@ -279,30 +279,51 @@ void processCommand(Stream* stream, String command) {
         }
     }
     else if (command.startsWith("gpsauto ")) {
-        // Continuous GPS: "gpsauto <hex_id> <minutes>"
+        // Continuous GPS: "gpsauto <hex_id> <minutes> <seconds>"
         int firstSpace = command.indexOf(' ', 8);
+        int secondSpace = command.indexOf(' ', firstSpace + 1);
+        
         if (firstSpace > 0) {
             String idStr = command.substring(8, firstSpace);
-            String intervalStr = command.substring(firstSpace + 1);
             uint32_t targetID = strtoul(idStr.c_str(), NULL, 16);
-            unsigned long minutes = intervalStr.toInt();
             
-            if (targetID > 0 && minutes >= 1 && minutes <= 1440) { // Max 24 hours
+            String minutesStr, secondsStr;
+            unsigned long minutes = 0, seconds = 0;
+            
+            if (secondSpace > 0) {
+                // Three parameters: id, minutes, seconds
+                minutesStr = command.substring(firstSpace + 1, secondSpace);
+                secondsStr = command.substring(secondSpace + 1);
+                minutes = minutesStr.toInt();
+                seconds = secondsStr.toInt();
+            } else {
+                // Two parameters: id, minutes (backwards compatibility)
+                minutesStr = command.substring(firstSpace + 1);
+                minutes = minutesStr.toInt();
+                seconds = 0;
+            }
+            
+            // Validate: interval = minutes * 60 + seconds
+            unsigned long totalSeconds = (minutes * 60) + seconds;
+            if (targetID > 0 && totalSeconds >= 1 && totalSeconds <= 86400) { // Max 24 hours
                 gpsState.continuousMode = true;
                 gpsState.targetID = targetID;
                 gpsState.intervalMinutes = minutes;
+                gpsState.intervalSeconds = seconds;
                 gpsState.lastTransmission = 0; // Send immediately on next check
                 
                 stream->print("📍 Auto-GPS enabled: 0x");
                 stream->print(targetID, HEX);
                 stream->print(" every ");
                 stream->print(minutes);
-                stream->println(" minutes");
+                stream->print("m ");
+                stream->print(seconds);
+                stream->println("s");
             } else {
-                stream->println("❌ Invalid parameters. Use: gpsauto <hex_id> <1-1440_minutes>");
+                stream->println("❌ Invalid parameters. Use: gpsauto <hex_id> <0-1440_min> <0-59_sec>");
             }
         } else {
-            stream->println("❌ Format: gpsauto <hex_id> <minutes>");
+            stream->println("❌ Format: gpsauto <hex_id> <minutes> <seconds>");
         }
     }
     else if (command == "gpsstop") {
@@ -573,7 +594,7 @@ void showCommandsTo(Stream* stream) {
     stream->println();
     stream->println("GPS & Location:");
     stream->println("  gps <hex_id>            - Send GPS location once");
-    stream->println("  gpsauto <hex_id> <min>  - Auto-send GPS every X minutes");
+    stream->println("  gpsauto <id> <m> <s>    - Auto-send GPS every M:SS");
     stream->println("  gpsstop                 - Stop auto GPS transmission");
     stream->println("  gpsinfo                 - Show GPS status");
     stream->println();

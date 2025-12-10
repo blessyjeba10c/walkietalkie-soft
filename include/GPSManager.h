@@ -25,6 +25,7 @@ struct GPSState {
     bool continuousMode = false;
     uint32_t targetID = 0;
     unsigned long intervalMinutes = 5;
+    unsigned long intervalSeconds = 0;
     unsigned long lastTransmission = 0;
 };
 

@@ -541,8 +541,8 @@ void executeMenuAction(String action) {
         } else if (action == "input_gps") {
             startInput("Enter Radio ID:", "gps ");
         } else if (action == "input_gpsauto") {
-            String prompts[] = {"Enter Radio ID:", "Enter Minutes:"};
-            startMultiStepInput("gpsauto ", prompts, 2);
+            String prompts[] = {"Enter Radio ID:", "Enter Minutes:", "Enter Seconds:"};
+            startMultiStepInput("gpsauto ", prompts, 3);
         } else if (action == "input_soldierid") {
             startInput("Enter Soldier ID:", "soldierid ");
         } else if (action == "input_lorasms") {

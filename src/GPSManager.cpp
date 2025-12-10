@@ -160,7 +160,8 @@ void handleContinuousGPS() {
     if (!gpsState.continuousMode) return;
     
     unsigned long currentTime = millis();
-    unsigned long intervalMs = gpsState.intervalMinutes * 60 * 1000; // Convert minutes to milliseconds
+    unsigned long totalSeconds = (gpsState.intervalMinutes * 60) + gpsState.intervalSeconds;
+    unsigned long intervalMs = totalSeconds * 1000; // Convert to milliseconds
     
     // Check if it's time to send GPS
     if (gpsState.lastTransmission == 0 || 
