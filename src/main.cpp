@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include "WalkieTalkie.h"
-#include "GPSManager.h"
-#include "GSMManager.h"
-#include "LoRaManager.h"
+#include "managers/GPSManager.h"
+#include "managers/GSMManager.h"
+#include "managers/LoRaManager.h"
 #include "CommandProcessor.h"
-#include "DisplayManager.h"
-#include "KeyboardManager.h"
+#include "managers/DisplayManager.h"
+#include "managers/KeyboardManager.h"
 
 void setup() {
     // Initialize all system components

@@ -1,9 +1,9 @@
 #include "WalkieTalkie.h"
-#include "GPSManager.h"
-#include "GSMManager.h"
-#include "LoRaManager.h"
-#include "DisplayManager.h"
-#include "KeyboardManager.h"
+#include "managers/GPSManager.h"
+#include "managers/GSMManager.h"
+#include "managers/LoRaManager.h"
+#include "managers/DisplayManager.h"
+#include "managers/KeyboardManager.h"
 
 // Global instances
 DMR828S dmr(Serial2);
@@ -16,7 +16,7 @@ void initializeSystem() {
     Serial1.begin(9600, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
     
     // Initialize Bluetooth
-    SerialBT.begin("LittleBoyz"); // Bluetooth device name
+    SerialBT.begin("FATMAN"); // Bluetooth device name
     
     // Initialize GSM module
     initializeGSM();

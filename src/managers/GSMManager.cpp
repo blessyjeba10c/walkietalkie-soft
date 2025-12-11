@@ -103,22 +103,45 @@ void getGSMSignalStrength() {
 }
 
 void sendGSMFallbackSMS(String phoneNumber, String message) {
+        
+    // First check current status
     if (!gsmState.initialized || !gsmState.networkRegistered) {
-        SerialBT.println("❌ GSM not ready for SMS");
-        return;
+        SerialBT.println("🔄 GSM status check - reinitializing...");
+        
+        // Try to reinitialize GSM
+        initializeGSM();
+        
+        // If still not ready after reinit, give up
+        if (!gsmState.initialized || !gsmState.networkRegistered) {
+            SerialBT.println("❌ GSM not ready for SMS after recheck");
+            SerialBT.print("   Initialized: ");
+            SerialBT.println(gsmState.initialized ? "Yes" : "No");
+            SerialBT.print("   Network Registered: ");
+            SerialBT.println(gsmState.networkRegistered ? "Yes" : "No");
+            return;
+        } else {
+            SerialBT.println("✅ GSM ready after reinitialization");
+        }
     }
     
     SerialBT.println("📱 Sending fallback SMS via GSM...");
     
+    // Set GSM in text mode
+    SerialBT.println("Setting the GSM in text mode");
+    Serial1.println("AT+CMGF=1\r");
+    delay(2000);
+    
     // Set SMS recipient
+    SerialBT.println("Sending SMS to: " + phoneNumber);
     Serial1.print("AT+CMGS=\"");
     Serial1.print(phoneNumber);
-    Serial1.println("\"");
-    delay(500);
+    Serial1.println("\"\r");
+    delay(2000);
     
     // Send message content
-    Serial1.print(message);
-    Serial1.write(0x1A); // Ctrl+Z to send
+    Serial1.println(message);
+    delay(200);
+    Serial1.println((char)26); // ASCII code of CTRL+Z
     delay(2000);
     
     if (waitForGSMResponse("OK", 10000)) {

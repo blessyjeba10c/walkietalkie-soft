@@ -8,8 +8,8 @@
 using CallType = DMRCallType;
 
 // Hardware pin definitions
-#define GSM_RX_PIN 25
-#define GSM_TX_PIN 26
+#define GSM_RX_PIN 26
+#define GSM_TX_PIN 25
 #define I2C_SDA 21
 #define I2C_SCL 22
 
