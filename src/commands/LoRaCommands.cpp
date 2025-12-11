@@ -32,14 +32,30 @@ void handleLoRaCommand(Stream* stream, String command) {
     else if (command.startsWith("lorasms ")) {
         String message = command.substring(8);
         message.trim();
+        
+        // Check for --no-id flag
+        bool includeID = true;
+        if (message.endsWith(" --no-id")) {
+            includeID = false;
+            message = message.substring(0, message.length() - 8);
+            message.trim();
+        }
+        
         if (message.length() > 0) {
-            if (sendLoRaMessage(message)) {
-                stream->println("✅ LoRa message sent: " + message);
+            // Add device ID if requested
+            String finalMessage = message;
+            if (includeID) {
+                finalMessage = "[ID:" + String(wtState.soldierID) + "] " + message;
+            }
+            
+            if (sendLoRaMessage(finalMessage)) {
+                stream->println("✅ LoRa message sent: " + finalMessage);
             } else {
                 stream->println("❌ Failed to send LoRa message");
             }
         } else {
-            stream->println("❌ Format: lorasms <message>");
+            stream->println("❌ Format: lorasms <message> [--no-id]");
+            stream->println("   Use --no-id flag to send without device ID");
         }
     }
     else if (command.startsWith("loragps ")) {

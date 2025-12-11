@@ -1,19 +1,12 @@
 /*
-  GSM Function Tester
-  Test GSM functions with Bluetooth control
+  GSM Auto SMS Sender - SIM800L Library
+  Sends "helloo" SMS every 5 seconds using SIM800L library
   
   Hardware Setup:
   - ESP32 GPIO25 -> GSM RX
   - ESP32 GPIO26 -> GSM TX
   - GSM GND -> ESP32 GND
-  - GSM VCC -> Power supply
-  
-  Commands via Bluetooth:
-  - 'sms' - Send test SMS
-  - 'check' - Check network registration
-  - 'signal' - Get signal strength
-  - 'wait:OK' - Test waitForGSMResponse
-  - Or type AT commands directly
+  - GSM VCC -> Power supply (3.7V-4.2V)
 */
 
 #define GSM_RX_PIN 26
@@ -21,11 +14,13 @@
 
 #include <BluetoothSerial.h>
 #include <HardwareSerial.h>
+#include "SIM800L.h"
 
 BluetoothSerial SerialBT;
 HardwareSerial gsmSerial(1);
+SIM800L gsm;
 
-// GSM State structure (from your main code)
+// GSM State structure
 struct GSMState {
     bool initialized = false;
     bool networkRegistered = false;
@@ -34,190 +29,109 @@ struct GSMState {
 };
 
 GSMState gsmState;
+bool debugMode = true;
+unsigned long lastSMSTime = 0;
+const unsigned long SMS_INTERVAL = 10000; // 10 seconds
+
+// Debug helper function
+void debugPrint(String message) {
+  if (debugMode) {
+    SerialBT.println("[DEBUG] " + message);
+    Serial.println("[DEBUG] " + message);
+  }
+}
+
+void initGSMModule() {
+  SerialBT.println("\n🔄 Initializing GSM Module...");
+  debugPrint("Starting SIM800L initialization");
+  
+  if (gsm.begin(gsmSerial)) {
+    SerialBT.println("✅ GSM module initialized successfully");
+    gsmState.initialized = true;
+    
+    // Check network registration
+    if (gsm.checkNetwork()) {
+      gsmState.networkRegistered = true;
+      SerialBT.println("✅ Network registered");
+    } else {
+      SerialBT.println("❌ Network not registered");
+    }
+    
+    SerialBT.println("📱 Ready to send SMS every 10 seconds!");
+  } else {
+    SerialBT.println("❌ GSM module initialization failed");
+    gsmState.initialized = false;
+  }
+}
+
+void sendAutoSMS() {
+  if (!gsmState.initialized || !gsmState.networkRegistered) {
+    SerialBT.println("❌ GSM not ready for SMS");
+    return;
+  }
+  
+  char phoneNumber[] = "8667399071";
+  char message[] = "helloo";
+  
+  debugPrint("Sending auto SMS: " + String(message));
+  SerialBT.println("📱 Sending SMS: " + String(message));
+  
+  if (gsm.sendSMS(phoneNumber, message)) {
+    SerialBT.println("✅ SMS sent successfully!");
+  } else {
+    SerialBT.println("❌ SMS sending failed");
+  }
+}
 
 void setup() {
   Serial.begin(115200);
-  SerialBT.begin("GSM_Tester");
+  SerialBT.begin("GSM_Auto_SMS");
   gsmSerial.begin(9600, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
   
-  delay(1000);
-  SerialBT.println("=== GSM Function Tester ===");
-  SerialBT.println("Commands:");
-  SerialBT.println("  'sms' - Send test SMS");
-  SerialBT.println("  'check' - Check network");
-  SerialBT.println("  'signal' - Get signal strength"); 
-  SerialBT.println("  'wait:OK' - Test wait function");
-  SerialBT.println("  Or type AT commands directly");
-  SerialBT.println("========================");
+  delay(2000);
+  SerialBT.println("=== GSM Auto SMS Sender ===");
+  SerialBT.println("🔧 Hardware Info:");
+  SerialBT.println("   GSM RX: GPIO" + String(GSM_RX_PIN));
+  SerialBT.println("   GSM TX: GPIO" + String(GSM_TX_PIN));
+  SerialBT.println("   Baud Rate: 9600");
+  SerialBT.println("   Message: helloo");
+  SerialBT.println("   Interval: 10 seconds");
+  SerialBT.println("================================");
+  
+  // Initial GSM module initialization
+  initGSMModule();
 }
 
 void loop() {
-  // Handle Bluetooth commands
+  // Send SMS every 5 seconds
+  if (millis() - lastSMSTime >= SMS_INTERVAL) {
+    sendAutoSMS();
+    lastSMSTime = millis();
+  }
+  
+  // Handle Bluetooth commands for debugging
   if (SerialBT.available()) {
     String command = SerialBT.readStringUntil('\n');
     command.trim();
     
-    if (command == "sms") {
-      SendMessage();
-    } else if (command == "check") {
-      checkGSMNetwork();
-    } else if (command == "signal") {
-      getGSMSignalStrength();
-      SerialBT.println("Signal Strength: " + String(gsmState.signalStrength));
-    } else if (command.startsWith("wait:")) {
-      String response = command.substring(5);
-      SerialBT.println("Testing waitForGSMResponse for: " + response);
-      gsmSerial.println("AT");
-      bool result = waitForGSMResponse(response, 3000);
-      SerialBT.println("Result: " + String(result ? "SUCCESS" : "FAILED"));
+    debugPrint("Received command: '" + command + "'");
+    
+    if (command == "init") {
+      initGSMModule();
+    } else if (command == "debug") {
+      debugMode = !debugMode;
+      SerialBT.println("🔧 Debug mode: " + String(debugMode ? "ON" : "OFF"));
+    } else if (command == "status") {
+      SerialBT.println("📊 Status:");
+      SerialBT.println("  Initialized: " + String(gsmState.initialized ? "Yes" : "No"));
+      SerialBT.println("  Network: " + String(gsmState.networkRegistered ? "Yes" : "No"));
+      SerialBT.println("  Uptime: " + String(millis()/1000) + " seconds");
     } else if (command.length() > 0) {
-      // Send AT command directly
-      SerialBT.println(">>> " + command);
-      gsmSerial.println(command);
+      SerialBT.println("❌ Available commands: init, debug, status");
     }
   }
   
-  // Forward GSM responses to Bluetooth
-  if (gsmSerial.available()) {
-    String response = "";
-    while (gsmSerial.available()) {
-      char c = gsmSerial.read();
-      response += c;
-      delay(1);
-    }
-    if (response.length() > 0) {
-      SerialBT.print("<<< ");
-      SerialBT.print(response);
-    }
-  }
+  // Small delay
+  delay(100);
 }
 
-// Your functions to test
-bool waitForGSMResponse(String expectedResponse, unsigned long timeout) {
-    SerialBT.println("Waiting for: '" + expectedResponse + "' (timeout: " + String(timeout) + "ms)");
-    unsigned long startTime = millis();
-    String response = "";
-    
-    while (millis() - startTime < timeout) {
-        if (gsmSerial.available()) {
-            char c = gsmSerial.read();
-            response += c;
-            SerialBT.print(c); // Show response in real-time
-            if (response.indexOf(expectedResponse) != -1) {
-                SerialBT.println("\n✅ Found expected response!");
-                return true;
-            }
-        }
-        delay(10);
-    }
-    SerialBT.println("\n❌ Timeout waiting for response");
-    SerialBT.println("Full response: '" + response + "'");
-    return false;
-}
-
-void checkGSMNetwork() {
-    SerialBT.println("🔍 Checking GSM network registration...");
-    
-    // Check network registration
-    gsmSerial.println("AT+CREG?");
-    delay(500);
-    
-    String response = "";
-    unsigned long startTime = millis();
-    while (millis() - startTime < 2000) {
-        if (gsmSerial.available()) {
-            response += (char)gsmSerial.read();
-            delay(10);
-        }
-    }
-    
-    SerialBT.println("CREG Response: '" + response + "'");
-    
-    if (response.indexOf("+CREG: 0,1") != -1 || response.indexOf("+CREG: 0,5") != -1) {
-        gsmState.networkRegistered = true;
-        SerialBT.println("✅ GSM network registered");
-        
-        // Get operator name
-        SerialBT.println("Getting operator info...");
-        gsmSerial.println("AT+COPS?");
-        delay(500);
-        
-        // Read operator response
-        String opResponse = "";
-        startTime = millis();
-        while (millis() - startTime < 2000) {
-            if (gsmSerial.available()) {
-                opResponse += (char)gsmSerial.read();
-                delay(10);
-            }
-        }
-        SerialBT.println("COPS Response: '" + opResponse + "'");
-        
-        // Get signal strength
-        getGSMSignalStrength();
-    } else {
-        gsmState.networkRegistered = false;
-        SerialBT.println("❌ GSM network not registered");
-        
-        // Show possible values for debugging
-        SerialBT.println("Expected: '+CREG: 0,1' or '+CREG: 0,5'");
-        if (response.indexOf("+CREG:") != -1) {
-            SerialBT.println("Found CREG response but status not registered");
-        } else {
-            SerialBT.println("No CREG response found");
-        }
-    }
-}
-
-void getGSMSignalStrength() {
-    SerialBT.println("📶 Getting signal strength...");
-    
-    gsmSerial.println("AT+CSQ");
-    delay(500);
-    
-    String response = "";
-    unsigned long startTime = millis();
-    while (millis() - startTime < 1000) {
-        if (gsmSerial.available()) {
-            response += (char)gsmSerial.read();
-            delay(10);
-        }
-    }
-    
-    SerialBT.println("CSQ Response: '" + response + "'");
-    
-    int csqIndex = response.indexOf("+CSQ: ");
-    if (csqIndex != -1) {
-        int commaIndex = response.indexOf(",", csqIndex);
-        if (commaIndex != -1) {
-            String rssiStr = response.substring(csqIndex + 6, commaIndex);
-            int rssi = rssiStr.toInt();
-            SerialBT.println("Raw RSSI: " + String(rssi));
-            if (rssi != 99) {
-                gsmState.signalStrength = rssi;
-                SerialBT.println("✅ Signal strength: " + String(rssi));
-            } else {
-                SerialBT.println("❌ No signal (RSSI = 99)");
-            }
-        }
-    } else {
-        SerialBT.println("❌ No CSQ response found");
-    }
-}
-
-void SendMessage() {
-   SerialBT.println("📱 Sending test SMS...");
-   SerialBT.println("Setting the GSM in text mode");
-   gsmSerial.println("AT+CMGF=1\r");
-   delay(2000);
-   
-   SerialBT.println("Sending SMS to the desired phone number!");
-   gsmSerial.println("AT+CMGS=\"+918667399071\"\r");
-   delay(2000);
-
-   gsmSerial.println("Hello from ESP32 GSM Test");    // SMS Text
-   delay(200);
-   gsmSerial.println((char)26);               // ASCII code of CTRL+Z
-   delay(2000);
-   SerialBT.println("✅ SMS command sequence completed");
-}

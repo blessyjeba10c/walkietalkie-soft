@@ -7,7 +7,7 @@
 // LoRa pin definitions
 #define LORA_SS_PIN 5
 #define LORA_RST_PIN 14
-#define LORA_DIO0_PIN 2
+#define LORA_DIO0_PIN 27
 
 // LoRa frequency for Asia
 #define LORA_FREQUENCY 433E6

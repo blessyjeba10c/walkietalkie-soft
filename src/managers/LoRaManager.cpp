@@ -22,7 +22,7 @@ void initializeLoRa() {
     
     if (attempts < 10) {
         // LoRa initialized successfully
-        LoRa.setSyncWord(LORA_SYNC_WORD);
+       // LoRa.setSyncWord(LORA_SYNC_WORD);
         LoRa.setTxPower(20); // Set max transmission power
         LoRa.setSpreadingFactor(7); // Balance between range and speed
         LoRa.setSignalBandwidth(125E3); // Standard bandwidth

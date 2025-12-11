@@ -1,35 +1,47 @@
 #include "GSMManager.h"
 #include "BluetoothSerial.h"
+#include "../SIM800L.h"
 
 extern BluetoothSerial SerialBT;
+extern HardwareSerial Serial1;
 
 GSMState gsmState;
+SIM800L gsm;
 
 void initializeGSM() {
-    SerialBT.println("📱 Initializing GSM module...");
+    SerialBT.println("📱 Initializing GSM module with SIM800L library...");
     
-    // Reset GSM module
-    Serial1.println("ATZ");
-    delay(1000);
-    
-    // Check if GSM module responds
-    Serial1.println("AT");
-    delay(500);
-    if (waitForGSMResponse("OK", 2000)) {
-        SerialBT.println("✅ GSM module detected");
-        
-        // Set text mode for SMS
-        Serial1.println("AT+CMGF=1");
-        waitForGSMResponse("OK", 1000);
+    if (gsm.begin(Serial1)) {
+        SerialBT.println("✅ GSM module initialized successfully");
+        gsmState.initialized = true;
         
         // Check network registration
-        checkGSMNetwork();
+        if (gsm.checkNetwork()) {
+            gsmState.networkRegistered = true;
+            SerialBT.println("✅ Network registered");
+            
+            // Get signal strength
+            int8_t signal = gsm.signalStrength();
+            if (signal >= 0) {
+                gsmState.signalStrength = signal;
+                SerialBT.println("Signal Strength: " + String(signal));
+            }
+            
+            // Get service provider
+            String provider = gsm.serviceProvider();
+            if (provider.length() > 0) {
+                SerialBT.println("Provider: " + provider);
+            }
+        } else {
+            gsmState.networkRegistered = false;
+            SerialBT.println("❌ Network not registered");
+        }
         
-        gsmState.initialized = true;
-        SerialBT.println("✅ GSM module initialized");
+        SerialBT.println("✅ GSM module ready");
     } else {
-        SerialBT.println("❌ GSM module not responding");
+        SerialBT.println("❌ GSM module initialization failed");
         gsmState.initialized = false;
+        gsmState.networkRegistered = false;
     }
 }
 
@@ -50,28 +62,20 @@ bool waitForGSMResponse(String expectedResponse, unsigned long timeout) {
 }
 
 void checkGSMNetwork() {
-    // Check network registration
-    Serial1.println("AT+CREG?");
-    delay(500);
+    SerialBT.println("🔍 Checking network registration...");
     
-    String response = "";
-    unsigned long startTime = millis();
-    while (millis() - startTime < 2000 && Serial1.available()) {
-        response += (char)Serial1.read();
-        delay(10);
-    }
-    
-    if (response.indexOf("+CREG: 0,1") != -1 || response.indexOf("+CREG: 0,5") != -1) {
+    if (gsm.checkNetwork()) {
         gsmState.networkRegistered = true;
         SerialBT.println("✅ GSM network registered");
         
-        // Get operator name
-        Serial1.println("AT+COPS?");
-        delay(500);
-        // Read operator response (simplified)
-        
         // Get signal strength
         getGSMSignalStrength();
+        
+        // Get service provider
+        String provider = gsm.serviceProvider();
+        if (provider.length() > 0 && provider != "No network") {
+            SerialBT.println("Provider: " + provider);
+        }
     } else {
         gsmState.networkRegistered = false;
         SerialBT.println("❌ GSM network not registered");
@@ -79,31 +83,26 @@ void checkGSMNetwork() {
 }
 
 void getGSMSignalStrength() {
-    Serial1.println("AT+CSQ");
-    delay(500);
+    SerialBT.println("📶 Getting signal strength...");
     
-    String response = "";
-    unsigned long startTime = millis();
-    while (millis() - startTime < 1000 && Serial1.available()) {
-        response += (char)Serial1.read();
-        delay(10);
-    }
-    
-    int csqIndex = response.indexOf("+CSQ: ");
-    if (csqIndex != -1) {
-        int commaIndex = response.indexOf(",", csqIndex);
-        if (commaIndex != -1) {
-            String rssiStr = response.substring(csqIndex + 6, commaIndex);
-            int rssi = rssiStr.toInt();
-            if (rssi != 99) {
-                gsmState.signalStrength = rssi;
-            }
+    int8_t signal = gsm.signalStrength();
+    if (signal >= 0) {
+        gsmState.signalStrength = signal;
+        SerialBT.println("Signal Strength: " + String(signal) + " (0-31 scale)");
+        
+        // Convert to dBm for better understanding
+        if (signal == 99) {
+            SerialBT.println("Signal: Not known or not detectable");
+        } else {
+            int dbm = -113 + (signal * 2);
+            SerialBT.println("Signal: " + String(dbm) + " dBm");
         }
+    } else {
+        SerialBT.println("❌ Could not get signal strength");
     }
 }
 
 void sendGSMFallbackSMS(String phoneNumber, String message) {
-        
     // First check current status
     if (!gsmState.initialized || !gsmState.networkRegistered) {
         SerialBT.println("🔄 GSM status check - reinitializing...");
@@ -124,54 +123,50 @@ void sendGSMFallbackSMS(String phoneNumber, String message) {
         }
     }
     
-    SerialBT.println("📱 Sending fallback SMS via GSM...");
+    SerialBT.println("📱 Sending SMS via GSM (SIM800L library)...");
+    SerialBT.println("To: " + phoneNumber);
+    SerialBT.println("Message: " + message);
     
-    // Set GSM in text mode
-    SerialBT.println("Setting the GSM in text mode");
-    Serial1.println("AT+CMGF=1\r");
-    delay(2000);
+    // Convert String to char array for SIM800L library
+    char phoneNumberArray[20];
+    char messageArray[160];
     
-    // Set SMS recipient
-    SerialBT.println("Sending SMS to: " + phoneNumber);
-    Serial1.print("AT+CMGS=\"");
-    Serial1.print(phoneNumber);
-    Serial1.println("\"\r");
-    delay(2000);
+    phoneNumber.toCharArray(phoneNumberArray, 20);
+    message.toCharArray(messageArray, 160);
     
-    // Send message content
-    Serial1.println(message);
-    delay(200);
-    Serial1.println((char)26); // ASCII code of CTRL+Z
-    delay(2000);
-    
-    if (waitForGSMResponse("OK", 10000)) {
-        SerialBT.println("✅ Fallback SMS sent successfully");
+    if (gsm.sendSMS(phoneNumberArray, messageArray)) {
+        SerialBT.println("✅ SMS sent successfully via SIM800L library");
     } else {
-        SerialBT.println("❌ Failed to send fallback SMS");
+        SerialBT.println("❌ Failed to send SMS via SIM800L library");
     }
 }
 
 void checkIncomingGSMSMS() {
-    // Check for incoming SMS notifications
-    if (Serial1.available()) {
-        String response = "";
-        unsigned long startTime = millis();
-        
-        while (millis() - startTime < 100 && Serial1.available()) {
-            response += (char)Serial1.read();
-            delay(1);
-        }
-        
-        // Look for SMS notification: +CMTI: "SM",<index>
-        if (response.indexOf("+CMTI:") != -1) {
-            int indexStart = response.lastIndexOf(",") + 1;
-            if (indexStart > 0) {
-                String indexStr = response.substring(indexStart);
-                indexStr.trim();
-                int smsIndex = indexStr.toInt();
-                
-                if (smsIndex > 0) {
-                    readGSMSMS(smsIndex);
+    // Check for incoming SMS notifications using SIM800L library
+    if (gsm.available()) {
+        // For now, we'll use a simplified approach
+        // The SIM800L library doesn't have a direct incoming SMS check method
+        // so we'll keep basic serial monitoring for SMS notifications
+        if (Serial1.available()) {
+            String response = "";
+            unsigned long startTime = millis();
+            
+            while (millis() - startTime < 100 && Serial1.available()) {
+                response += (char)Serial1.read();
+                delay(1);
+            }
+            
+            // Look for SMS notification: +CMTI: "SM",<index>
+            if (response.indexOf("+CMTI:") != -1) {
+                int indexStart = response.lastIndexOf(",") + 1;
+                if (indexStart > 0) {
+                    String indexStr = response.substring(indexStart);
+                    indexStr.trim();
+                    int smsIndex = indexStr.toInt();
+                    
+                    if (smsIndex > 0) {
+                        readGSMSMS(smsIndex);
+                    }
                 }
             }
         }
@@ -179,41 +174,34 @@ void checkIncomingGSMSMS() {
 }
 
 void readGSMSMS(int index) {
-    // Read SMS at specified index
-    Serial1.print("AT+CMGR=");
-    Serial1.println(index);
-    delay(1000);
+    SerialBT.println("📱 Reading SMS at index: " + String(index));
     
-    String response = "";
-    unsigned long startTime = millis();
+    // Use SIM800L library to read SMS
+    String smsContent = gsm.readSMS(index);
     
-    while (millis() - startTime < 3000 && Serial1.available()) {
-        response += (char)Serial1.read();
-        delay(1);
-    }
-    
-    // Parse SMS content
-    // Format: +CMGR: "REC UNREAD","+phoneNumber","","timestamp"\r\nMessage content
-    if (response.indexOf("+CMGR:") != -1) {
-        int messageStart = response.indexOf('\n', response.indexOf("+CMGR:"));
-        if (messageStart != -1) {
-            String message = response.substring(messageStart + 1);
-            message.trim();
-            
-            // Remove the message from SIM card
-            Serial1.print("AT+CMGD=");
-            Serial1.println(index);
-            delay(500);
-            
-            SerialBT.println("\n📱 GSM SMS Received:");
-            SerialBT.println("Message: " + message);
-            
-            // Check if this is a GPS message and parse it
-            if (message.startsWith("GPS ")) {
-                // Need to include WalkieTalkie.h functions
-                extern void parseIncomingGPS(String message, String commMode);
-                parseIncomingGPS(message, "GSM");
+    if (smsContent.length() > 0) {
+        SerialBT.println("📱 GSM SMS Received:");
+        SerialBT.println("Raw content: " + smsContent);
+        
+        // Parse SMS content from SIM800L library format
+        // Format: +CMGR: "REC UNREAD","+phoneNumber","","timestamp"\r\nMessage content
+        if (smsContent.indexOf("+CMGR:") != -1) {
+            int messageStart = smsContent.indexOf('\n', smsContent.indexOf("+CMGR:"));
+            if (messageStart != -1) {
+                String message = smsContent.substring(messageStart + 1);
+                message.trim();
+                
+                SerialBT.println("Parsed message: " + message);
+                
+                // Check if this is a GPS message and parse it
+                if (message.startsWith("GPS ")) {
+                    // Need to include WalkieTalkie.h functions
+                    extern void parseIncomingGPS(String message, String commMode);
+                    parseIncomingGPS(message, "GSM");
+                }
             }
         }
+    } else {
+        SerialBT.println("❌ Failed to read SMS at index " + String(index));
     }
 }

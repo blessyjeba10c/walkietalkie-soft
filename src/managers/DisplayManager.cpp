@@ -546,7 +546,8 @@ void executeMenuAction(String action) {
         } else if (action == "input_soldierid") {
             startInput("Enter Soldier ID:", "soldierid ");
         } else if (action == "input_lorasms") {
-            startInput("Enter Message:", "lorasms ");
+            String prompts[] = {"Enter Message:", "Include ID? (Y/N):"};
+            startMultiStepInput("lorasms_input ", prompts, 2);
         } else if (action == "input_smartsend") {
             startInput("Enter Message:", "smartsend ");
         }
@@ -897,9 +898,23 @@ void nextInputStep() {
 void completeMultiStepInput() {
     // Build command from all step values
     String fullCommand = displayState.pendingAction;
-    for (int i = 0; i < displayState.inputStep; i++) {
-        if (i > 0) fullCommand += " ";
-        fullCommand += displayState.stepValues[i];
+    
+    // Special handling for LoRa message with ID option
+    if (displayState.pendingAction == "lorasms_input ") {
+        String message = displayState.stepValues[0];
+        String includeID = displayState.stepValues[1];
+        includeID.toUpperCase();
+        
+        fullCommand = "lorasms " + message;
+        if (includeID.startsWith("N")) {
+            fullCommand += " --no-id";
+        }
+    } else {
+        // Normal multi-step command building
+        for (int i = 0; i < displayState.inputStep; i++) {
+            if (i > 0) fullCommand += " ";
+            fullCommand += displayState.stepValues[i];
+        }
     }
     
     // Execute command
