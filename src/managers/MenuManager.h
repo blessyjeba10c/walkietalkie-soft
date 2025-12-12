@@ -13,12 +13,9 @@ void goBack();
 
 // Menu creation functions
 void createMainMenu();
-void createRadioMenu();
-void createRadioConfigMenu();
-void createEncryptionMenu();
-void createSMSMenu();
-void createGPSMenu();
-void createGSMMenu();
-void createDebugMenu();
-void createCommStatusMenu();
+void createTrackerMenu();
+void createGroundMenu();
 void createSettingsMenu();
+void createLoRaMenu();
+void createEncryptionMenu();
+void createDebugMenu();

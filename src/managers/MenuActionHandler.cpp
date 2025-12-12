@@ -45,6 +45,10 @@ void executeMenuAction(String action) {
             startMultiStepInput("lorasms_input ", prompts, 2);
         } else if (action == "input_smartsend") {
             startInput("Enter Message:", "smartsend ");
+        } else if (action == "input_groundid") {
+            startInput("Enter Ground ID:", "radioid ");
+        } else if (action == "input_frequency") {
+            startInput("Enter Freq (MHz):", "frequency ");
         }
         return;
     }
@@ -120,11 +124,19 @@ void executeMenuAction(String action) {
         delay(500);
     } else if (action == "lorastatus") {
         captureCommandOutput("lorastatus");
+        processCommand(&SerialBT, "lorastatus");
         displayCapturedOutput();
         displayState.inMenu = false;
         delay(500);
+    } else if (action == "ackon") {
+        processCommand(&SerialBT, "ackon");
+        displaySuccess("LoRa ACK enabled");
+    } else if (action == "ackoff") {
+        processCommand(&SerialBT, "ackoff");
+        displaySuccess("LoRa ACK disabled");
     } else if (action == "fallback") {
         captureCommandOutput("fallback");
+        processCommand(&SerialBT, "fallback");
         displayCapturedOutput();
         displayState.inMenu = false;
         delay(500);

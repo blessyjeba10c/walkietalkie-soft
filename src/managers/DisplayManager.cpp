@@ -67,34 +67,41 @@ void showMainScreen() {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tf);
     
-    // Title
-    u8g2.drawStr(0, 10, "DMR Radio System");
+    // Title - Home Screen
+    u8g2.drawStr(0, 10, "Home Screen");
     u8g2.drawHLine(0, 12, 128);
     
-    // Status indicators
-    char statusLine[32];
-    snprintf(statusLine, sizeof(statusLine), "CH:%d VOL:%d", wtState.currentChannel, wtState.volume);
-    u8g2.drawStr(0, 25, statusLine);
-    
-    // GPS Status
-    if (gpsState.hasValidFix) {
-        u8g2.drawStr(0, 35, "GPS: LOCK");
-    } else {
-        u8g2.drawStr(0, 35, "GPS: SEARCH");
-    }
-    
-    // GSM Status  
-    char gsmLine[32];
-    if (gsmState.networkRegistered) {
-        snprintf(gsmLine, sizeof(gsmLine), "GSM: REG %d", gsmState.signalStrength);
-    } else {
-        snprintf(gsmLine, sizeof(gsmLine), "GSM: NO NET");
-    }
-    u8g2.drawStr(0, 45, gsmLine);
-    
-    // Menu options
+    // Line 1: GSM/GPS/LoRa Status
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.drawStr(0, 60, "*=Menu #=Back A=Call");
+    char line1[32];
+    snprintf(line1, sizeof(line1), "GSM:%s GPS:%s LoRa:%s",
+        gsmState.networkRegistered ? "Y" : "N",
+        gpsState.hasValidFix ? "Y" : "N",
+        "Y");
+    u8g2.drawStr(0, 22, line1);
+    
+    // Line 2: GSM Phone
+    char line2[32];
+    if (gsmState.phoneNumber.length() > 0) {
+        snprintf(line2, sizeof(line2), "GSM:%s", gsmState.phoneNumber.substring(0, 12).c_str());
+    } else {
+        snprintf(line2, sizeof(line2), "GSM: Not set");
+    }
+    u8g2.drawStr(0, 32, line2);
+    
+    // Line 3: Frequency (placeholder - 142.000 MHz)
+    u8g2.drawStr(0, 42, "142.000 MHz");
+    
+    // Line 4: Channel and Radio ID
+    char line4[32];
+    snprintf(line4, sizeof(line4), "CH:%d ID:0x%X", 
+        wtState.currentChannel, 
+        (unsigned int)wtState.myRadioID);
+    u8g2.drawStr(0, 52, line4);
+    
+    // Bottom: Menu hint
+    u8g2.setFont(u8g2_font_4x6_tf);
+    u8g2.drawStr(0, 62, "*=Menu");
     
     u8g2.sendBuffer();
 }

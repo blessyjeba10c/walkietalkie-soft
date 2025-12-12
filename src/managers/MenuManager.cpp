@@ -12,16 +12,35 @@ void initializeMenus() {
 void createMainMenu() {
     displayState.currentMenu.title = "Main Menu";
     displayState.currentMenu.selectedItem = 0;
-    displayState.currentMenu.itemCount = 8;
+    displayState.currentMenu.itemCount = 3;
     
-    displayState.currentMenu.items[0] = {"Radio Control", "radio_menu", true};
-    displayState.currentMenu.items[1] = {"Radio Config", "radio_config_menu", true};
-    displayState.currentMenu.items[2] = {"Encryption", "encryption_menu", true};
-    displayState.currentMenu.items[3] = {"SMS & GSM", "sms_menu", true};
-    displayState.currentMenu.items[4] = {"GPS Control", "gps_menu", true};
-    displayState.currentMenu.items[5] = {"Message History", "show_messages", false};
-    displayState.currentMenu.items[6] = {"Debug Tools", "debug_menu", true};
-    displayState.currentMenu.items[7] = {"Exit Menu", "exit_menu", false};
+    displayState.currentMenu.items[0] = {"TRACKER", "tracker_menu", true};
+    displayState.currentMenu.items[1] = {"GROUND", "ground_menu", true};
+    displayState.currentMenu.items[2] = {"SETTINGS", "settings_menu", true};
+}
+
+void createTrackerMenu() {
+    displayState.currentMenu.title = "TRACKER Setup";
+    displayState.currentMenu.selectedItem = 0;
+    displayState.currentMenu.itemCount = 6;
+    
+    displayState.currentMenu.items[0] = {"Set Radio ID", "input_radioid", false};
+    displayState.currentMenu.items[1] = {"Set Ground ID", "input_groundid", false};
+    displayState.currentMenu.items[2] = {"Set GSM Phone", "input_gsmphone", false};
+    displayState.currentMenu.items[3] = {"Auto GPS Time", "input_gpsauto", false};
+    displayState.currentMenu.items[4] = {"Send Position", "send_position", false};
+    displayState.currentMenu.items[5] = {"Back", "back", false};
+}
+
+void createGroundMenu() {
+    displayState.currentMenu.title = "GROUND Setup";
+    displayState.currentMenu.selectedItem = 0;
+    displayState.currentMenu.itemCount = 4;
+    
+    displayState.currentMenu.items[0] = {"Set Radio ID", "input_radioid", false};
+    displayState.currentMenu.items[1] = {"Set Channel", "input_channel", false};
+    displayState.currentMenu.items[2] = {"Radio Status", "status", false};
+    displayState.currentMenu.items[3] = {"Back", "back", false};
 }
 
 void createRadioMenu() {
@@ -129,13 +148,28 @@ void createCommStatusMenu() {
 }
 
 void createSettingsMenu() {
-    displayState.currentMenu.title = "Settings";
+    displayState.currentMenu.title = "SETTINGS";
+    displayState.currentMenu.selectedItem = 0;
+    displayState.currentMenu.itemCount = 8;
+    
+    displayState.currentMenu.items[0] = {"Set Channel", "input_channel", false};
+    displayState.currentMenu.items[1] = {"Set Volume", "input_volume", false};
+    displayState.currentMenu.items[2] = {"Set Frequency", "input_frequency", false};
+    displayState.currentMenu.items[3] = {"GSM Phone", "input_gsmphone", false};
+    displayState.currentMenu.items[4] = {"LoRa Config", "lora_menu", true};
+    displayState.currentMenu.items[5] = {"Encryption", "encryption_menu", true};
+    displayState.currentMenu.items[6] = {"Debug Tools", "debug_menu", true};
+    displayState.currentMenu.items[7] = {"Back", "back", false};
+}
+
+void createLoRaMenu() {
+    displayState.currentMenu.title = "LoRa Config";
     displayState.currentMenu.selectedItem = 0;
     displayState.currentMenu.itemCount = 4;
     
-    displayState.currentMenu.items[0] = {"Display Settings", "display_settings", false};
-    displayState.currentMenu.items[1] = {"Radio Settings", "radio_settings", false};
-    displayState.currentMenu.items[2] = {"Debug Mode", "debug_mode", false};
+    displayState.currentMenu.items[0] = {"LoRa Status", "lorastatus", false};
+    displayState.currentMenu.items[1] = {"Enable ACK", "ackon", false};
+    displayState.currentMenu.items[2] = {"Disable ACK", "ackoff", false};
     displayState.currentMenu.items[3] = {"Back", "back", false};
 }
 
@@ -204,24 +238,18 @@ void selectMenuItem() {
         }
         
         // Load submenu
-        if (selectedItem.action == "radio_menu") {
-            createRadioMenu();
-        } else if (selectedItem.action == "radio_config_menu") {
-            createRadioConfigMenu();
-        } else if (selectedItem.action == "encryption_menu") {
-            createEncryptionMenu();
-        } else if (selectedItem.action == "sms_menu") {
-            createSMSMenu();
-        } else if (selectedItem.action == "gps_menu") {
-            createGPSMenu();
-        } else if (selectedItem.action == "gsm_menu") {
-            createGSMMenu();
-        } else if (selectedItem.action == "debug_menu") {
-            createDebugMenu();
+        if (selectedItem.action == "tracker_menu") {
+            createTrackerMenu();
+        } else if (selectedItem.action == "ground_menu") {
+            createGroundMenu();
         } else if (selectedItem.action == "settings_menu") {
             createSettingsMenu();
-        } else if (selectedItem.action == "comm_status_menu") {
-            createCommStatusMenu();
+        } else if (selectedItem.action == "lora_menu") {
+            createLoRaMenu();
+        } else if (selectedItem.action == "encryption_menu") {
+            createEncryptionMenu();
+        } else if (selectedItem.action == "debug_menu") {
+            createDebugMenu();
         }
         
         showMenu();
