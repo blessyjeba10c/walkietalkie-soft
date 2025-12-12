@@ -61,6 +61,11 @@ void onSMSReceived(const DMRSMSMessage& message) {
     String historyEntry = "DMR:" + String(message.message);
     addMessage(historyEntry);
     
+    // Add to message overlay queue for display
+    extern void addMessageToQueue(String message);
+    String displayMsg = "[DMR] From: 0x" + String(message.sourceID, HEX) + "\n" + String(message.message);
+    addMessageToQueue(displayMsg);
+    
     // Check if this is a GPS message and parse it
     String msgStr = String(message.message);
     if (msgStr.startsWith("GPS ")) {

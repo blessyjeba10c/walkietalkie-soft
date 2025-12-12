@@ -205,6 +205,59 @@ void processCommand(Stream* stream, String command) {
             stream->println("❌ Format: smartsend <message>");
         }
     }
+    else if (command.startsWith("sendtracker ") || command.startsWith("msgtracker ")) {
+        // Extract message (works with both commands)
+        int spacePos = command.indexOf(' ');
+        String message = command.substring(spacePos + 1);
+        message.trim();
+        
+        if (message.length() > 0) {
+            stream->println("📡 Sending message to tracker via fallback system...");
+            bool sent = false;
+            
+            // Try DMR first if target ID is set
+            if (!sent && wtState.myRadioID != 0) {
+                stream->println("📻 Attempting DMR transmission...");
+                if (dmr.sendSMS(wtState.myRadioID, message.c_str())) {
+                    stream->println("✅ Message sent via DMR");
+                    sent = true;
+                } else {
+                    stream->println("⚠️ DMR transmission failed, trying fallback...");
+                }
+            }
+            
+            // Try LoRa second
+            if (!sent && isLoRaAvailable()) {
+                stream->println("📡 Attempting LoRa transmission...");
+                if (sendLoRaMessage(message)) {
+                    stream->println("✅ Message sent via LoRa");
+                    sent = true;
+                } else {
+                    stream->println("⚠️ LoRa transmission failed, trying GSM...");
+                }
+            }
+            
+            // Try GSM last
+            if (!sent && gsmState.initialized && gsmState.networkRegistered) {
+                stream->println("📱 Attempting GSM transmission...");
+                if (gsmState.phoneNumber.length() > 0) {
+                    extern void sendGSMFallbackSMS(String phoneNumber, String message);
+                    sendGSMFallbackSMS(gsmState.phoneNumber, message);
+                    stream->println("✅ Message sent via GSM SMS");
+                    sent = true;
+                } else {
+                    stream->println("❌ GSM phone number not configured");
+                }
+            }
+            
+            if (!sent) {
+                stream->println("❌ All communication methods failed");
+                stream->println("💡 Tip: Configure fallback phone with 'gsmphone <number>'");
+            }
+        } else {
+            stream->println("❌ Format: sendtracker <message>");
+        }
+    }
     else if (command == "smsinfo") {
         stream->println("\\n📊 SMS Status Info:");
         stream->println("Use this to check if waiting for SMS response");
@@ -312,6 +365,8 @@ void showCommandsTo(Stream* stream) {
     stream->println("  group <hex_id>          - Group call");
     stream->println("  stop                    - Stop current call");
     stream->println("  emergency               - Send SOS");
+    stream->println("  sendtracker <message>   - Send message to tracker (auto-fallback)");
+    stream->println("  smartsend <message>     - Send broadcast message (auto-fallback)");
     stream->println();
     stream->println("Settings:");
     stream->println("  channel <1-16>          - Change channel");
@@ -373,6 +428,7 @@ void showCommandsTo(Stream* stream) {
     stream->println("  soldierid BSF67890      - Set soldier ID to BSF67890");
     stream->println("  lorasms Hello World     - Send message via LoRa");
     stream->println("  loragps Alpha_01        - Send GPS to Alpha_01 via LoRa");
+    stream->println("  sendtracker STATUS OK   - Send status to tracker (auto-fallback)");
     stream->println();
 }
 

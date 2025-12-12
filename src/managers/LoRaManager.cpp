@@ -90,6 +90,11 @@ void handleLoRaMessage(String message) {
     String historyEntry = "LoRa:" + message;
     addMessage(historyEntry);
     
+    // Add to message overlay queue for display
+    extern void addMessageToQueue(String message);
+    String displayMsg = "[LoRa]\n" + message;
+    addMessageToQueue(displayMsg);
+    
     // Check if this is a GPS message and parse it
     if (message.startsWith("GPS ")) {
         // Parse GPS coordinates from LoRa

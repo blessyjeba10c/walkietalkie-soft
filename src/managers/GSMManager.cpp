@@ -200,6 +200,11 @@ void checkIncomingGSMSMS() {
                 String historyEntry = "GSM:" + messageBody;
                 addMessage(historyEntry);
                 
+                // Add to message overlay queue for display
+                extern void addMessageToQueue(String message);
+                String displayMsg = "[GSM] From: " + senderNumber + "\n" + messageBody;
+                addMessageToQueue(displayMsg);
+                
                 // Check if this is a GPS message and parse it
                 if (messageBody.startsWith("GPS ")) {
                     extern void parseIncomingGPS(String message, String commMode);

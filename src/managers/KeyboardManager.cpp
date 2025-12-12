@@ -106,6 +106,17 @@ KeyAction getKeyPress() {
 }
 
 void handleKeyPress(KeyAction key) {
+    // Check if message overlay is active - highest priority
+    extern bool hasMessagesInQueue();
+    extern void dismissCurrentMessage();
+    if (hasMessagesInQueue()) {
+        // Only respond to OK/SELECT key to dismiss message
+        if (key == KEY_SELECT || key == KEY_5 || key == KEY_STAR) {
+            dismissCurrentMessage();
+        }
+        return;
+    }
+    
     // Check if we're in input mode
     if (displayState.inputMode) {
         char c = keyToChar(key);
