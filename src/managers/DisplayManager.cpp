@@ -1,10 +1,21 @@
-#include "DisplayManager.h"
-#include "GPSManager.h"
-#include "GSMManager.h"
-#include "WalkieTalkie.h"
+// DisplayManager.cpp - Main entry point
+// The actual implementation has been refactored into:
+// - DisplayCore.cpp: Core display functions, initialization, messages
+// - DisplayScreens.cpp: Screen rendering (main, GPS, GSM, status, history)
+// - DisplayMenus.cpp: Menu creation and navigation
+// - DisplayInput.cpp: Input handling, command execution, multi-step input
 
-DisplayState displayState;
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, /* reset=*/ U8X8_PIN_NONE);
+// This file exists for compatibility - all functions are in the modular files
+// Include this file in your build system to link all display components
+
+#include "DisplayManager.h"
+
+// All implementation is in:
+// - DisplayCore.cpp
+// - DisplayScreens.cpp  
+// - DisplayMenus.cpp
+// - DisplayInput.cpp
+
 
 void initializeDisplay() {
     // Initialize U8g2
@@ -15,20 +26,22 @@ void initializeDisplay() {
     
     // Show startup screen
     u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_8x13B_tf);
+    u8g2.drawStr(10, 20, "WALKIE-TALKIE");
     u8g2.setFont(u8g2_font_6x10_tf);
-    u8g2.drawStr(0, 10, "DMR Walkie-Talkie");
-    u8g2.drawHLine(0, 12, 128);
-    u8g2.drawStr(0, 25, "GPS: Initializing...");
-    u8g2.drawStr(0, 35, "GSM: Initializing...");
-    u8g2.drawStr(0, 45, "DMR: Initializing...");
-    u8g2.drawStr(0, 60, "Use keypad to navigate");
+    u8g2.drawHLine(0, 25, 128);
+    u8g2.drawStr(20, 38, "DMR + GPS + GSM");
+    u8g2.drawStr(25, 50, "+ LoRa Mesh");
+    u8g2.setFont(u8g2_font_5x7_tf);
+    u8g2.drawStr(25, 62, "Initializing...");
     u8g2.sendBuffer();
     
     delay(2000);
     
     // Initialize menu system
     initializeMenus();
-    showMenu();
+    displayState.inMenu = false;
+    showMainScreen();
 }
 
 void updateDisplay() {
@@ -61,36 +74,64 @@ void updateDisplay() {
 
 void showMainScreen() {
     u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_6x10_tf);
     
-    // Title
-    u8g2.drawStr(0, 10, "DMR Radio System");
-    u8g2.drawHLine(0, 12, 128);
-    
-    // Status indicators
-    char statusLine[32];
-    snprintf(statusLine, sizeof(statusLine), "CH:%d VOL:%d", wtState.currentChannel, wtState.volume);
-    u8g2.drawStr(0, 25, statusLine);
-    
-    // GPS Status
-    if (gpsState.hasValidFix) {
-        u8g2.drawStr(0, 35, "GPS: LOCK");
-    } else {
-        u8g2.drawStr(0, 35, "GPS: SEARCH");
-    }
-    
-    // GSM Status  
-    char gsmLine[32];
-    if (gsmState.networkRegistered) {
-        snprintf(gsmLine, sizeof(gsmLine), "GSM: REG %d", gsmState.signalStrength);
-    } else {
-        snprintf(gsmLine, sizeof(gsmLine), "GSM: NO NET");
-    }
-    u8g2.drawStr(0, 45, gsmLine);
-    
-    // Menu options
+    // Top status bar - signal indicators
     u8g2.setFont(u8g2_font_5x7_tf);
-    u8g2.drawStr(0, 60, "*=Menu #=Back A=Call");
+    
+    // DMR signal icon (left)
+    if (dmr.isConnected()) {
+        u8g2.drawStr(0, 7, "DMR");
+        // Draw signal bars
+        for (int i = 0; i < 4; i++) {
+            u8g2.drawVLine(20 + i*3, 7 - i, i + 1);
+        }
+    } else {
+        u8g2.drawStr(0, 7, "---");
+    }
+    
+    // GPS signal (middle)
+    if (gpsState.hasValidFix) {
+        u8g2.drawStr(40, 7, "GPS");
+        // Draw satellite icon bars
+        for (int i = 0; i < 3; i++) {
+            u8g2.drawVLine(55 + i*3, 7 - i, i + 1);
+        }
+    } else {
+        u8g2.drawStr(40, 7, "GPS?");
+    }
+    
+    // GSM signal (right)
+    if (gsmState.networkRegistered) {
+        u8g2.drawStr(75, 7, "GSM");
+        // Signal strength bars (0-5 bars based on signal)
+        int bars = map(gsmState.signalStrength, 0, 31, 0, 5);
+        for (int i = 0; i < bars && i < 5; i++) {
+            u8g2.drawVLine(95 + i*3, 7 - i, i + 1);
+        }
+    } else {
+        u8g2.drawStr(75, 7, "---");
+    }
+    
+    // Divider line
+    u8g2.drawHLine(0, 9, 128);
+    
+    // Main frequency display
+    u8g2.setFont(u8g2_font_8x13B_tf);
+    char freqLine[20];
+    snprintf(freqLine, sizeof(freqLine), "143.000 MHz");
+    int freqWidth = u8g2.getStrWidth(freqLine);
+    u8g2.drawStr((128 - freqWidth) / 2, 28, freqLine);
+    
+    // Divider
+    u8g2.drawHLine(0, 32, 128);
+    
+    // Bottom navigation menu
+    u8g2.setFont(u8g2_font_6x10_tf);
+    u8g2.drawStr(8, 50, "#Menu");
+    u8g2.drawStr(70, 50, "#back");
+    
+    // Draw vertical separator
+    u8g2.drawVLine(64, 35, 20);
     
     u8g2.sendBuffer();
 }
@@ -321,22 +362,18 @@ void initializeMenus() {
 }
 
 void createMainMenu() {
-    displayState.currentMenu.title = "Main Menu";
+    displayState.currentMenu.title = "MAIN MENU";
     displayState.currentMenu.selectedItem = 0;
-    displayState.currentMenu.itemCount = 8;
+    displayState.currentMenu.itemCount = 4;
     
-    displayState.currentMenu.items[0] = {"Radio Control", "radio_menu", true};
-    displayState.currentMenu.items[1] = {"Radio Config", "radio_config_menu", true};
-    displayState.currentMenu.items[2] = {"Encryption", "encryption_menu", true};
-    displayState.currentMenu.items[3] = {"SMS & GSM", "sms_menu", true};
-    displayState.currentMenu.items[4] = {"GPS Control", "gps_menu", true};
-    displayState.currentMenu.items[5] = {"Message History", "show_messages", false};
-    displayState.currentMenu.items[6] = {"Debug Tools", "debug_menu", true};
-    displayState.currentMenu.items[7] = {"Exit Menu", "exit_menu", false};
+    displayState.currentMenu.items[0] = {"DMR-Radio", "radio_menu", true};
+    displayState.currentMenu.items[1] = {"GSM", "gsm_menu", true};
+    displayState.currentMenu.items[2] = {"LoRa", "lora_menu", true};
+    displayState.currentMenu.items[3] = {"GPS", "gps_menu", true};
 }
 
 void createRadioMenu() {
-    displayState.currentMenu.title = "Radio Control";
+    displayState.currentMenu.title = "DMR-RADIO";
     displayState.currentMenu.selectedItem = 0;
     displayState.currentMenu.itemCount = 8;
     
@@ -351,7 +388,7 @@ void createRadioMenu() {
 }
 
 void createGPSMenu() {
-    displayState.currentMenu.title = "GPS Control";
+    displayState.currentMenu.title = "GPS";
     displayState.currentMenu.selectedItem = 0;
     displayState.currentMenu.itemCount = 6;
     
@@ -364,7 +401,7 @@ void createGPSMenu() {
 }
 
 void createGSMMenu() {
-    displayState.currentMenu.title = "GSM Control";
+    displayState.currentMenu.title = "GSM";
     displayState.currentMenu.selectedItem = 0;
     displayState.currentMenu.itemCount = 4;
     
