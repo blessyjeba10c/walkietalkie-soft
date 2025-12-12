@@ -76,6 +76,7 @@ void handleLoRaCommand(Stream* stream, String command) {
         }
         
         if (message.length() > 0) {
+            wtState.currentSendMode = "LoRa";
             // Add device ID if requested
             String finalMessage = message;
             if (includeID) {

@@ -13,6 +13,7 @@ void handleDMRCommand(Stream* stream, String command) {
             String message = command.substring(firstSpace + 1);
             uint32_t targetID = strtoul(idStr.c_str(), NULL, 16);
             if (dmr.sendSMS(targetID, message.c_str())) {
+                wtState.currentSendMode = "DMR";
                 stream->print("📤 SMS sent to 0x"); stream->print(targetID, HEX);
                 stream->print(": "); stream->println(message);
             } else {

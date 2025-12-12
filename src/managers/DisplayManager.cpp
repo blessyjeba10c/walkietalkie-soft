@@ -99,9 +99,11 @@ void showMainScreen() {
         (unsigned int)wtState.myRadioID);
     u8g2.drawStr(0, 52, line4);
     
-    // Bottom: Menu hint
+    // Bottom: Send Mode and Menu hint
     u8g2.setFont(u8g2_font_4x6_tf);
-    u8g2.drawStr(0, 62, "*=Menu");
+    char bottomLine[32];
+    snprintf(bottomLine, sizeof(bottomLine), "Mode:%s *=Menu", wtState.currentSendMode.c_str());
+    u8g2.drawStr(0, 62, bottomLine);
     
     u8g2.sendBuffer();
 }

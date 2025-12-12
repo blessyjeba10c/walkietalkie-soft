@@ -111,6 +111,7 @@ void handleGSMCommand(Stream* stream, String command) {
             phone.trim();
             message.trim();
             if (phone.length() > 0 && message.length() > 0) {
+                wtState.currentSendMode = "GSM";
                 extern void sendGSMFallbackSMS(String phoneNumber, String message);
                 sendGSMFallbackSMS(phone, message);
             } else {

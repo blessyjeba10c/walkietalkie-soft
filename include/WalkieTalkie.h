@@ -20,6 +20,7 @@ struct WalkieTalkieState {
     uint8_t volume = 5;
     String soldierID = "BSF12345"; // Default soldier ID
     String loraNetworkID = "NET01"; // LoRa network ID for filtering
+    String currentSendMode = "DMR"; // Last used send mode: DMR, LoRa, or GSM
 };
 
 // Demo mode selector
