@@ -5,6 +5,8 @@
 #include "managers/DisplayManager.h"
 #include "managers/KeyboardManager.h"
 #include "esp_task_wdt.h"
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 // Global instances
 DMR828S dmr(Serial2);
@@ -13,11 +15,19 @@ WalkieTalkieState wtState;
 DemoMode currentMode = MODE_WALKIE_FEATURES;
 
 void initializeSystem() {
+    // Disable brownout detector to prevent resets from power fluctuations
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+    
     // Disable watchdog timer to prevent resets during blocking operations
     disableCore0WDT();
     #ifdef ESP32
         disableCore1WDT();
     #endif
+    
+    Serial.begin(115200);
+    Serial.println("\n=== ESP32 Walkie-Talkie Starting ===");
+    Serial.print("Free heap: ");
+    Serial.println(ESP.getFreeHeap());
     
     // Initialize GSM module on Serial1
     Serial1.begin(9600, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);

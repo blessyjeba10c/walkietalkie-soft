@@ -113,5 +113,18 @@ void loop() {
         if (SerialBT.hasClient()) {
             SerialBT.write(0); // Send null byte as heartbeat
         }
+        // Monitor heap to detect memory leaks
+        static uint32_t lastHeap = 0;
+        uint32_t freeHeap = ESP.getFreeHeap();
+        if (lastHeap > 0 && freeHeap < lastHeap - 5000) {
+            Serial.print("⚠️ Heap dropped: ");
+            Serial.print(lastHeap);
+            Serial.print(" -> ");
+            Serial.println(freeHeap);
+        }
+        lastHeap = freeHeap;
     }
+    
+    // Yield to prevent task watchdog issues
+    yield();
 }

@@ -313,6 +313,7 @@ bool SIM800L::sendSMS(char* number,char* text)
 	tempTime=millis();
 	while(millis()-tempTime <= 20000) // Wait for SMS sent response for 1 minute(Maximum response time of AT+CMGS is 1 min)
 	{
+		yield(); // Prevent watchdog reset during long wait
 		if(available())
 		{
 			_serialBuffer=_readSerial();
@@ -321,6 +322,7 @@ bool SIM800L::sendSMS(char* number,char* text)
 				return true;
 			}
 		}
+		delay(10); // Small delay to prevent tight loop
 	}
 
 	return false;
