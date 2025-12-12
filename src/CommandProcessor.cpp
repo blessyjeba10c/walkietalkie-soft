@@ -205,6 +205,20 @@ void processCommand(Stream* stream, String command) {
             stream->println("❌ Format: smartsend <message>");
         }
     }
+    else if (command.startsWith("msg ")) {
+        // Send message to tracker with fallback (DMR -> LoRa -> GSM)
+        String message = command.substring(4);
+        message.trim();
+        
+        if (message.length() > 0) {
+            extern bool sendMessageWithFallback(String message);
+            sendMessageWithFallback(message);
+        } else {
+            stream->println("❌ Format: msg <message>");
+            stream->println("   Sends message with automatic fallback");
+            stream->println("   DMR → LoRa → GSM");
+        }
+    }
     else if (command == "smsinfo") {
         stream->println("\\n📊 SMS Status Info:");
         stream->println("Use this to check if waiting for SMS response");
@@ -308,6 +322,7 @@ void showCommandsTo(Stream* stream) {
     stream->println("=======================");
     stream->println("Communication:");
     stream->println("  sms <hex_id> <message>  - Send SMS");
+    stream->println("  msg <message>           - Send with fallback (DMR→LoRa→GSM)");
     stream->println("  call <hex_id>           - Private call");
     stream->println("  group <hex_id>          - Group call");
     stream->println("  stop                    - Stop current call");

@@ -12,6 +12,10 @@ extern GPSState gpsState;
 extern LoRaState loraState;
 extern GSMState gsmState;
 extern LoRaReliable loraReliable;
+extern DisplayState displayState;
+
+// Message sending with fallback
+bool sendMessageWithFallback(String message);
 
 // FreeRTOS Task Handles
 TaskHandle_t dmrTaskHandle = NULL;
@@ -139,16 +143,79 @@ void keyboardTask(void *parameter) {
     }
 }
 
+// Send message with fallback (DMR -> LoRa -> GSM)
+bool sendMessageWithFallback(String message) {
+    bool sent = false;
+    
+    SerialBT.println("📤 Sending message with fallback...");
+    
+    // Try DMR first (fastest, most reliable for tactical)
+    SerialBT.println("📡 Attempting DMR transmission...");
+    if (dmr.sendSMS(0xFFFFFF, message.c_str())) { // Broadcast to all
+        SerialBT.println("✅ Message sent via DMR");
+        sent = true;
+        return sent;
+    }
+    
+    // Fallback to LoRa if DMR fails
+    if (!sent && loraState.initialized) {
+        SerialBT.println("📡 DMR failed, trying LoRa...");
+        if (sendLoRaMessage(message)) {
+            SerialBT.println("✅ Message sent via LoRa");
+            sent = true;
+            return sent;
+        }
+    }
+    
+    // Fallback to GSM if LoRa fails
+    if (!sent && gsmState.initialized && gsmState.networkRegistered) {
+        SerialBT.println("📡 LoRa failed, trying GSM...");
+        String phoneNumber = "+1234567890"; // TODO: Make configurable
+        sendGSMFallbackSMS(phoneNumber, message);
+        SerialBT.println("✅ Message sent via GSM");
+        sent = true;
+        return sent;
+    }
+    
+    if (!sent) {
+        SerialBT.println("❌ All transmission methods failed");
+    }
+    
+    return sent;
+}
+
 // Tracker mode task - GPS reading and transmission with fallback
 void trackerTask(void *parameter) {
     static unsigned long lastTransmit = 0;
+    static unsigned long lastGSMCheck = 0;
     const unsigned long TRANSMIT_INTERVAL = 30000; // Send every 30 seconds
+    const unsigned long GSM_CHECK_INTERVAL = 5000; // Check GSM every 5 seconds
     
     while (true) {
         readGPS();
         handleContinuousGPS();
         
+        // Check for incoming messages from all channels
+        dmr.update(); // Handles DMR messages
+        
+        // Check LoRa messages
+        if (loraState.initialized) {
+            String loraMsg = loraReliable.receive();
+            if (loraMsg.length() > 0 && !loraMsg.startsWith("GPS")) {
+                // Non-GPS message - add to display queue
+                addMessageToQueue("[LoRa] " + loraMsg);
+                SerialBT.println("📩 Message received via LoRa: " + loraMsg);
+            }
+        }
+        
+        // Check GSM messages periodically
         unsigned long currentTime = millis();
+        if (currentTime - lastGSMCheck >= GSM_CHECK_INTERVAL) {
+            lastGSMCheck = currentTime;
+            checkIncomingGSMSMS();
+        }
+        
+        // GPS transmission logic
         if (currentTime - lastTransmit >= TRANSMIT_INTERVAL) {
             lastTransmit = currentTime;
             

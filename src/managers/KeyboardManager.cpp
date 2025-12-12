@@ -145,6 +145,15 @@ KeyAction getKeyPress() {
 }
 
 void handleKeyPress(KeyAction key) {
+    // Check if message overlay is active - highest priority
+    if (displayState.messageOverlayActive) {
+        // Only OK button (SELECT or 5) dismisses messages
+        if (key == KEY_5 || key == KEY_SELECT) {
+            dismissCurrentMessage();
+        }
+        return; // Ignore all other keys when overlay is active
+    }
+    
     // Check if we're in input mode
     if (displayState.inputMode) {
         char c = keyToChar(key);

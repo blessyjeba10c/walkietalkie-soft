@@ -54,6 +54,13 @@ struct DisplayState {
     // Command output capture
     String lastCommandOutput = "";
     bool captureOutput = false;
+    
+    // Message overlay system
+    bool messageOverlayActive = false;
+    String messageQueue[10]; // Queue for incoming messages
+    int messageQueueHead = 0; // Next position to write
+    int messageQueueTail = 0; // Next position to read
+    int messageQueueCount = 0; // Number of messages in queue
 };
 
 extern DisplayState displayState;
@@ -98,5 +105,11 @@ void handleInput(char c);
 void cancelInput();
 void confirmInput();
 void showInputScreen();
+
+// Message overlay functions
+void addMessageToQueue(String message);
+void showMessageOverlay();
+void dismissCurrentMessage();
+bool hasMessagesInQueue();
 void captureCommandOutput(String command);
 void displayCapturedOutput();

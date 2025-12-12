@@ -1,6 +1,7 @@
 #include "GSMManager.h"
 #include "BluetoothSerial.h"
 #include "../SIM800L.h"
+#include "WalkieTalkie.h"
 
 extern BluetoothSerial SerialBT;
 extern HardwareSerial Serial1;
@@ -204,6 +205,14 @@ void checkIncomingGSMSMS() {
                 if (messageBody.startsWith("GPS ")) {
                     extern void parseIncomingGPS(String message, String commMode);
                     parseIncomingGPS(messageBody, "GSM");
+                } else {
+                    // Non-GPS message - add to display overlay queue in tracker mode
+                    extern DemoMode currentMode;
+                    if (currentMode == MODE_TRACKER) {
+                        extern void addMessageToQueue(String message);
+                        String displayMsg = "[GSM] " + messageBody;
+                        addMessageToQueue(displayMsg);
+                    }
                 }
                 
                 // Delete message after reading

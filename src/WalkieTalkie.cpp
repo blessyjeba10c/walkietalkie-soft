@@ -65,6 +65,13 @@ void onSMSReceived(const DMRSMSMessage& message) {
     String msgStr = String(message.message);
     if (msgStr.startsWith("GPS ")) {
         parseIncomingGPS(msgStr, "DMR");
+    } else {
+        // Non-GPS message - add to display overlay queue in tracker mode
+        if (currentMode == MODE_TRACKER) {
+            extern void addMessageToQueue(String message);
+            String displayMsg = "[DMR] " + msgStr;
+            addMessageToQueue(displayMsg);
+        }
     }
 }
 
