@@ -9,8 +9,8 @@ extern GPSState gpsState;
 
 void handleLoRaCommand(Stream* stream, String command) {
     if (command == "lorastatus") {
-        stream->println("\\n📡 LoRa Status:");
-        stream->print("Initialized: ");
+        stream->println("\\n📡 LoRa Status:");        stream->print("Network ID: ");
+        stream->println(wtState.loraNetworkID);        stream->print("Initialized: ");
         stream->println(loraState.initialized ? "YES" : "NO");
         stream->print("Available: ");
         stream->println(loraState.available ? "YES" : "NO");
@@ -47,6 +47,21 @@ void handleLoRaCommand(Stream* stream, String command) {
         disableLoRaAck();
         stream->println("✅ LoRa ACK mode disabled");
         stream->println("Messages will be broadcast without ACK");
+    }
+    else if (command.startsWith("loraid ")) {
+        String networkID = command.substring(7);
+        networkID.trim();
+        networkID.toUpperCase();
+        
+        if (networkID.length() >= 3 && networkID.length() <= 10) {
+            wtState.loraNetworkID = networkID;
+            stream->println("✅ LoRa Network ID set to: " + networkID);
+            stream->println("📡 Only messages with ID [" + networkID + "] will be received");
+            stream->println("📡 All sent messages will include [" + networkID + "]");
+        } else {
+            stream->println("❌ Invalid Network ID. Use 3-10 characters");
+            stream->println("Example: loraid NET01");
+        }
     }
     else if (command.startsWith("lorasms ")) {
         String message = command.substring(8);

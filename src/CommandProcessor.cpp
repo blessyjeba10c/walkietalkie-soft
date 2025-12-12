@@ -118,6 +118,7 @@ void showCommandsTo(Stream* stream) {
     stream->println();
     stream->println("LoRa Communication:");
     stream->println("  lorastatus              - Check LoRa module status");
+    stream->println("  loraid <id>             - Set LoRa network ID (filter)");
     stream->println("  lorasms <message>       - Send message via LoRa");
     stream->println("  loragps <callsign>      - Send GPS location via LoRa");
     stream->println("  ackon                   - Enable LoRa ACK mode");
@@ -139,6 +140,7 @@ void showCommandsTo(Stream* stream) {
     stream->println("  raw 68010101A9020110    - Send raw DMR frame");
     stream->println("  gsmphone +1234567890    - Set emergency fallback number");
     stream->println("  soldierid BSF67890      - Set soldier ID to BSF67890");
+    stream->println("  loraid NET01            - Set LoRa network ID to NET01");
     stream->println("  lorasms Hello World     - Send message via LoRa");
     stream->println("  loragps Alpha_01        - Send GPS to Alpha_01 via LoRa");
     stream->println("  sendtracker STATUS OK   - Send status to tracker (auto-fallback)");

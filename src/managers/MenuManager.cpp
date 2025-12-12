@@ -165,12 +165,13 @@ void createSettingsMenu() {
 void createLoRaMenu() {
     displayState.currentMenu.title = "LoRa Config";
     displayState.currentMenu.selectedItem = 0;
-    displayState.currentMenu.itemCount = 4;
+    displayState.currentMenu.itemCount = 5;
     
-    displayState.currentMenu.items[0] = {"LoRa Status", "lorastatus", false};
-    displayState.currentMenu.items[1] = {"Enable ACK", "ackon", false};
-    displayState.currentMenu.items[2] = {"Disable ACK", "ackoff", false};
-    displayState.currentMenu.items[3] = {"Back", "back", false};
+    displayState.currentMenu.items[0] = {"Set Network ID", "input_loraid", false};
+    displayState.currentMenu.items[1] = {"LoRa Status", "lorastatus", false};
+    displayState.currentMenu.items[2] = {"Enable ACK", "ackon", false};
+    displayState.currentMenu.items[3] = {"Disable ACK", "ackoff", false};
+    displayState.currentMenu.items[4] = {"Back", "back", false};
 }
 
 void showMenu() {

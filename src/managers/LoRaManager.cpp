@@ -40,16 +40,21 @@ bool sendLoRaMessage(String message) {
         return false;
     }
     
+    // Prepend network ID for filtering
+    extern WalkieTalkieState wtState;
+    String fullMessage = "[" + wtState.loraNetworkID + "]" + message;
+    
     SerialBT.println("📡 Sending LoRa message...");
+    SerialBT.println("Network ID: " + wtState.loraNetworkID);
     SerialBT.println("Message: " + message);
     
     bool success;
     if (loraState.ackMode) {
         // Send with ACK and retry
-        success = loraReliable.send(message, loraState.maxRetries, loraState.ackTimeout);
+        success = loraReliable.send(fullMessage, loraState.maxRetries, loraState.ackTimeout);
     } else {
         // Broadcast mode - no ACK (single retry)
-        success = loraReliable.send(message, 1, 0);
+        success = loraReliable.send(fullMessage, 1, 0);
     }
     
     if (success) {
@@ -68,19 +73,35 @@ void checkLoRaMessages() {
     String message = loraReliable.receive();
     
     if (message.length() > 0) {
-        // Get signal quality
-        loraState.rssi = loraReliable.getRSSI();
-        loraState.snr = loraReliable.getSNR();
-        loraState.lastMessage = message;
-        loraState.lastMessageTime = millis();
+        extern WalkieTalkieState wtState;
         
-        SerialBT.println("\n📡 LoRa Message Received:");
-        SerialBT.println("Message: " + message);
-        SerialBT.println("RSSI: " + String(loraState.rssi) + " dBm");
-        SerialBT.println("SNR: " + String(loraState.snr) + " dB");
+        // Check if message starts with network ID
+        String expectedPrefix = "[" + wtState.loraNetworkID + "]";
         
-        // Handle the received message
-        handleLoRaMessage(message);
+        if (message.startsWith(expectedPrefix)) {
+            // Remove network ID prefix
+            String actualMessage = message.substring(expectedPrefix.length());
+            
+            // Get signal quality
+            loraState.rssi = loraReliable.getRSSI();
+            loraState.snr = loraReliable.getSNR();
+            loraState.lastMessage = actualMessage;
+            loraState.lastMessageTime = millis();
+            
+            SerialBT.println("\n📡 LoRa Message Received:");
+            SerialBT.println("Network ID: " + wtState.loraNetworkID + " ✅");
+            SerialBT.println("Message: " + actualMessage);
+            SerialBT.println("RSSI: " + String(loraState.rssi) + " dBm");
+            SerialBT.println("SNR: " + String(loraState.snr) + " dB");
+            
+            // Handle the received message
+            handleLoRaMessage(actualMessage);
+        } else {
+            // Wrong network ID - ignore message
+            SerialBT.println("\n📡 LoRa Message Ignored (wrong network ID)");
+            SerialBT.println("Expected: " + expectedPrefix);
+            SerialBT.println("Received prefix: " + message.substring(0, min(10, (int)message.length())));
+        }
     }
 }
 

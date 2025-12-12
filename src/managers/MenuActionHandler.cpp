@@ -49,6 +49,8 @@ void executeMenuAction(String action) {
             startInput("Enter Ground ID:", "radioid ");
         } else if (action == "input_frequency") {
             startInput("Enter Freq (MHz):", "frequency ");
+        } else if (action == "input_loraid") {
+            startInput("Enter LoRa ID:", "loraid ");
         }
         return;
     }
