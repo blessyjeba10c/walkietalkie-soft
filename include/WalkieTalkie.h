@@ -25,7 +25,9 @@ struct WalkieTalkieState {
 enum DemoMode {
     MODE_BASIC_TEST,
     MODE_WALKIE_FEATURES,
-    MODE_LOW_LEVEL
+    MODE_LOW_LEVEL,
+    MODE_TRACKER,    // GPS tracking with DMR->LoRa->GSM fallback
+    MODE_RECEIVER    // Receive from GSM/LoRa/DMR and output to Bluetooth
 };
 
 // Global instances and state

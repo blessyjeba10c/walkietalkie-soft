@@ -7,6 +7,12 @@
 #include "managers/DisplayManager.h"
 #include "managers/KeyboardManager.h"
 
+// External state variables
+extern GPSState gpsState;
+extern LoRaState loraState;
+extern GSMState gsmState;
+extern LoRaReliable loraReliable;
+
 // FreeRTOS Task Handles
 TaskHandle_t dmrTaskHandle = NULL;
 TaskHandle_t gpsTaskHandle = NULL;
@@ -133,6 +139,109 @@ void keyboardTask(void *parameter) {
     }
 }
 
+// Tracker mode task - GPS reading and transmission with fallback
+void trackerTask(void *parameter) {
+    static unsigned long lastTransmit = 0;
+    const unsigned long TRANSMIT_INTERVAL = 30000; // Send every 30 seconds
+    
+    while (true) {
+        readGPS();
+        handleContinuousGPS();
+        
+        unsigned long currentTime = millis();
+        if (currentTime - lastTransmit >= TRANSMIT_INTERVAL) {
+            lastTransmit = currentTime;
+            
+            // Get GPS data
+            double lat, lon;
+            String status;
+            
+            if (gpsState.hasValidFix) {
+                lat = gpsState.latitude;
+                lon = gpsState.longitude;
+                status = "CURRENT";
+            } else if (gpsState.hasLastLocation) {
+                lat = gpsState.lastLatitude;
+                lon = gpsState.lastLongitude;
+                status = "LAST";
+            } else {
+                // Skip transmission if no GPS data available
+                SerialBT.println("⏭️ No GPS data available, skipping transmission");
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                continue;
+            }
+            
+            // Format GPS message
+            String gpsMessage = "GPS " + status + ": ";
+            gpsMessage += wtState.soldierID + ",";
+            gpsMessage += String(lat, 6) + "," + String(lon, 6);
+            
+            // Attempt transmission with fallback: DMR -> LoRa -> GSM
+            bool sent = false;
+            
+            // Try DMR first (fastest, most reliable for tactical)
+            SerialBT.println("📡 Attempting DMR transmission...");
+            if (dmr.sendSMS(0xFFFFFF, gpsMessage.c_str())) { // Broadcast to all
+                SerialBT.println("✅ GPS sent via DMR");
+                sent = true;
+            }
+            
+            // Fallback to LoRa if DMR fails
+            if (!sent && loraState.initialized) {
+                SerialBT.println("📡 DMR failed, trying LoRa...");
+                if (sendLoRaMessage(gpsMessage)) {
+                    SerialBT.println("✅ GPS sent via LoRa");
+                    sent = true;
+                }
+            }
+            
+            // Fallback to GSM if LoRa fails
+            if (!sent && gsmState.initialized && gsmState.networkRegistered) {
+                SerialBT.println("📡 LoRa failed, trying GSM...");
+                // Send to configured phone number (add to settings)
+                String phoneNumber = "+1234567890"; // TODO: Make configurable
+                sendGSMFallbackSMS(phoneNumber, gpsMessage);
+                SerialBT.println("✅ GPS sent via GSM");
+                sent = true;
+            }
+            
+            if (!sent) {
+                SerialBT.println("❌ All transmission methods failed");
+            }
+        }
+        
+        vTaskDelay(pdMS_TO_TICKS(1000)); // 1 second GPS update
+    }
+}
+
+// Receiver mode task - Listen on all channels and output to Bluetooth
+void receiverTask(void *parameter) {
+    while (true) {
+        // Check all communication channels for incoming messages
+        
+        // Check DMR for messages
+        dmr.update();
+        
+        // Check LoRa messages
+        if (loraState.initialized) {
+            String loraMsg = loraReliable.receive();
+            if (loraMsg.length() > 0) {
+                SerialBT.println("\n📡 [LoRa] " + loraMsg);
+                SerialBT.println("RSSI: " + String(loraReliable.getRSSI()) + " dBm");
+            }
+        }
+        
+        // Check GSM messages (less frequently to avoid spam)
+        static unsigned long lastGSMCheck = 0;
+        if (millis() - lastGSMCheck >= 5000) { // Check every 5 seconds
+            lastGSMCheck = millis();
+            checkIncomingGSMSMS();
+        }
+        
+        vTaskDelay(pdMS_TO_TICKS(100)); // 100ms polling
+    }
+}
+
 void setup() {
     // Initialize all system components
     initializeSystem();
@@ -153,83 +262,45 @@ void setup() {
     // Show available commands
     showCommands();
     
-    SerialBT.println("🚀 Creating FreeRTOS tasks...");
+    SerialBT.println("🚀 Creating FreeRTOS tasks based on mode...");
     
-    // Create FreeRTOS tasks
-    xTaskCreatePinnedToCore(
-        dmrTask,           // Task function
-        "DMR_Task",        // Task name
-        DMR_STACK_SIZE,    // Stack size
-        NULL,              // Parameters
-        DMR_TASK_PRIORITY, // Priority
-        &dmrTaskHandle,    // Task handle
-        0                  // CPU core (0 or 1)
-    );
-    
-    xTaskCreatePinnedToCore(
-        gpsTask,
-        "GPS_Task",
-        GPS_STACK_SIZE,
-        NULL,
-        GPS_TASK_PRIORITY,
-        &gpsTaskHandle,
-        1  // Use core 1 for GPS
-    );
-    
-    xTaskCreatePinnedToCore(
-        gsmTask,
-        "GSM_Task",
-        GSM_STACK_SIZE,
-        NULL,
-        GSM_TASK_PRIORITY,
-        &gsmTaskHandle,
-        1  // Use core 1 for GSM
-    );
-    
-    xTaskCreatePinnedToCore(
-        loraTask,
-        "LoRa_Task",
-        LORA_STACK_SIZE,
-        NULL,
-        LORA_TASK_PRIORITY,
-        &loraTaskHandle,
-        0  // Use core 0 for LoRa
-    );
-    
-    xTaskCreatePinnedToCore(
-        bluetoothTask,
-        "BT_Task",
-        BLUETOOTH_STACK_SIZE,
-        NULL,
-        BLUETOOTH_TASK_PRIORITY,
-        &bluetoothTaskHandle,
-        0  // Use core 0 for Bluetooth
-    );
-    
-    xTaskCreatePinnedToCore(
-        displayTask,
-        "Display_Task",
-        DISPLAY_STACK_SIZE,
-        NULL,
-        DISPLAY_TASK_PRIORITY,
-        &displayTaskHandle,
-        1  // Use core 1 for display
-    );
-    
-    xTaskCreatePinnedToCore(
-        keyboardTask,
-        "Keyboard_Task",
-        KEYBOARD_STACK_SIZE,
-        NULL,
-        KEYBOARD_TASK_PRIORITY,
-        &keyboardTaskHandle,
-        1  // Use core 1 for keyboard
-    );
-    
-    SerialBT.println("✅ All FreeRTOS tasks created successfully!");
-    SerialBT.println("📊 Task Distribution:");
-    SerialBT.println("   Core 0: DMR, LoRa, Bluetooth");
-    SerialBT.println("   Core 1: GPS, GSM, Display, Keyboard");
+    // Mode-specific task creation for optimization
+    if (currentMode == MODE_TRACKER) {
+        // TRACKER MODE: GPS + Communication + Bluetooth + Display + Keyboard
+        SerialBT.println("📍 TRACKER MODE: GPS transmission with fallback");
+        
+        xTaskCreatePinnedToCore(trackerTask, "Tracker_Task", 4096, NULL, 5, &gpsTaskHandle, 1);
+        xTaskCreatePinnedToCore(bluetoothTask, "BT_Task", BLUETOOTH_STACK_SIZE, NULL, 4, &bluetoothTaskHandle, 0);
+        xTaskCreatePinnedToCore(displayTask, "Display_Task", DISPLAY_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY, &displayTaskHandle, 1);
+        xTaskCreatePinnedToCore(keyboardTask, "Keyboard_Task", KEYBOARD_STACK_SIZE, NULL, KEYBOARD_TASK_PRIORITY, &keyboardTaskHandle, 1);
+        
+        SerialBT.println("✅ Tracker tasks created: GPS+Comms, Bluetooth, Display, Keyboard");
+        SerialBT.println("⚡ Optimized: Disabled separate DMR/LoRa/GSM tasks (3 tasks saved)");
+        
+    } else if (currentMode == MODE_RECEIVER) {
+        // RECEIVER MODE: Only Communication receiver + Bluetooth output
+        SerialBT.println("📻 RECEIVER MODE: Multi-channel receiver");
+        
+        xTaskCreatePinnedToCore(receiverTask, "Receiver_Task", 4096, NULL, 5, &dmrTaskHandle, 0);
+        xTaskCreatePinnedToCore(bluetoothTask, "BT_Task", BLUETOOTH_STACK_SIZE, NULL, 4, &bluetoothTaskHandle, 0);
+        
+        SerialBT.println("✅ Receiver tasks created: Multi-channel RX, Bluetooth");
+        SerialBT.println("⚡ Optimized: Disabled GPS, Display, Keyboard");
+        
+    } else {
+        // FULL MODE: All tasks for complete functionality
+        SerialBT.println("🔧 FULL MODE: All subsystems active");
+        
+        xTaskCreatePinnedToCore(dmrTask, "DMR_Task", DMR_STACK_SIZE, NULL, DMR_TASK_PRIORITY, &dmrTaskHandle, 0);
+        xTaskCreatePinnedToCore(gpsTask, "GPS_Task", GPS_STACK_SIZE, NULL, GPS_TASK_PRIORITY, &gpsTaskHandle, 1);
+        xTaskCreatePinnedToCore(gsmTask, "GSM_Task", GSM_STACK_SIZE, NULL, GSM_TASK_PRIORITY, &gsmTaskHandle, 1);
+        xTaskCreatePinnedToCore(loraTask, "LoRa_Task", LORA_STACK_SIZE, NULL, LORA_TASK_PRIORITY, &loraTaskHandle, 0);
+        xTaskCreatePinnedToCore(bluetoothTask, "BT_Task", BLUETOOTH_STACK_SIZE, NULL, BLUETOOTH_TASK_PRIORITY, &bluetoothTaskHandle, 0);
+        xTaskCreatePinnedToCore(displayTask, "Display_Task", DISPLAY_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY, &displayTaskHandle, 1);
+        xTaskCreatePinnedToCore(keyboardTask, "Keyboard_Task", KEYBOARD_STACK_SIZE, NULL, KEYBOARD_TASK_PRIORITY, &keyboardTaskHandle, 1);
+        
+        SerialBT.println("✅ All 7 tasks created: DMR, GPS, GSM, LoRa, BT, Display, Keyboard");
+    }
 }
 
 void loop() {

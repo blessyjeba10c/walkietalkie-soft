@@ -9,7 +9,7 @@
 DMR828S dmr(Serial2);
 BluetoothSerial SerialBT;
 WalkieTalkieState wtState;
-DemoMode currentMode = MODE_WALKIE_FEATURES;
+DemoMode currentMode = MODE_TRACKER;  // Default to tracker mode
 
 void initializeSystem() {
     // Initialize GSM module on Serial1

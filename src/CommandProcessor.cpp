@@ -389,6 +389,8 @@ void showStatusTo(Stream* stream) {
         case MODE_BASIC_TEST: stream->println("Basic Test"); break;
         case MODE_WALKIE_FEATURES: stream->println("Full Walkie-Talkie"); break;
         case MODE_LOW_LEVEL: stream->println("Low-Level Protocol"); break;
+        case MODE_TRACKER: stream->println("GPS Tracker (DMR->LoRa->GSM)"); break;
+        case MODE_RECEIVER: stream->println("Multi-channel Receiver"); break;
         default: stream->println("Unknown"); break;
     }
     
