@@ -14,6 +14,7 @@ String sendGSMATCommand(const String& cmd, unsigned long timeout) {
             char c = Serial1.read();
             response += c;
         }
+        yield();
         delay(10);
     }
     response.trim();
@@ -85,6 +86,7 @@ void handleGSMCommand(Stream* stream, String command) {
             char c = Serial1.read();
             response += c;
             stream->write(c);
+            yield();
             delay(2);
         }
         if (response.length() == 0) {

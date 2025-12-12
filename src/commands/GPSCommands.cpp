@@ -140,6 +140,7 @@ void handleGPSCommand(Stream* stream, String command) {
                     stream->println(rawData);
                 }
             }
+            yield();
             delay(10); // Small delay to prevent blocking
         }
         stream->println("=============================");

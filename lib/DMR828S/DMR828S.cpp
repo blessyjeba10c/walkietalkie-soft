@@ -731,6 +731,7 @@ bool DMR828S::waitForResponse(DMRFrame &frame, uint32_t timeout_ms) {
                 return true;
             }
         }
+        yield();
         delay(1);
     }
     return false;

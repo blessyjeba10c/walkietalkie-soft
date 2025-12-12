@@ -24,16 +24,17 @@ void initializeSystem() {
         disableCore1WDT();
     #endif
     
-    Serial.begin(115200);
-    Serial.println("\n=== ESP32 Walkie-Talkie Starting ===");
-    Serial.print("Free heap: ");
-    Serial.println(ESP.getFreeHeap());
+    // Serial0 will be used for GPS at 9600 baud (initialized in GPSManager)
+    // Use SerialBT for debugging instead
     
     // Initialize GSM module on Serial1
     Serial1.begin(9600, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
     
     // Initialize Bluetooth with aggressive keep-alive settings
     SerialBT.begin("WalkieTalkie"); // Bluetooth device name
+    SerialBT.println("\n=== ESP32 Walkie-Talkie Starting ===");
+    SerialBT.print("Free heap: ");
+    SerialBT.println(ESP.getFreeHeap());
     // Remove timeout to prevent disconnection
     // SerialBT.setTimeout(500); 
     
@@ -343,7 +344,7 @@ void processGPSData(double lat, double lon, String soldierId, String commMode) {
     SerialBT.println();
     
     // Also output to Serial monitor for logging
-    Serial.println("GPS JSON: " + jsonData);
+    SerialBT.println("GPS JSON: " + jsonData);
     
     // Here you can add additional processing like:
     // - Save to SD card

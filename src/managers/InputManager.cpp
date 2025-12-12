@@ -105,7 +105,6 @@ void confirmInput() {
         displayState.inputMode = false;
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else {
         displayState.inputMode = false;
         showMenu();
@@ -248,5 +247,4 @@ void completeMultiStepInput() {
     // Show result
     displayCapturedOutput();
     displayState.inMenu = false;
-    delay(500);
 }

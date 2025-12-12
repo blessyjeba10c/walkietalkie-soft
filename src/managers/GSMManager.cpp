@@ -56,6 +56,7 @@ bool waitForGSMResponse(String expectedResponse, unsigned long timeout) {
                 return true;
             }
         }
+        yield();
         delay(10);
     }
     return false;
@@ -151,6 +152,7 @@ void checkIncomingGSMSMS() {
     unsigned long startTime = millis();
     while (millis() - startTime < 1000 && Serial1.available()) {
         response += Serial1.readString();
+        yield();
         delay(10);
     }
     

@@ -24,17 +24,20 @@ const KeyAction keyMatrix[ROWS][COLS] = {
 void initializeKeyboard() {
     // Initialize I2C
     Wire.begin(I2C_SDA, I2C_SCL);
+    yield();
     delay(100);
+    yield();
     
     // Initialize PCF8574 pins to all HIGH (rows and columns)
     Wire.beginTransmission(PCF8574_ADDR);
     Wire.write(0xFF);
+    yield();
     if (Wire.endTransmission() == 0) {
         keyboardState.initialized = true;
-        Serial.println("Keyboard initialized successfully!");
+        SerialBT.println("Keyboard initialized successfully!");
     } else {
         keyboardState.initialized = false;
-        Serial.println("Failed to initialize keyboard!");
+        SerialBT.println("Failed to initialize keyboard!");
         return;
     }
     
@@ -45,11 +48,15 @@ void scanKeyboard() {
     if (!keyboardState.initialized) return;
     
     static unsigned long lastScan = 0;
-    if (millis() - lastScan < 10) return; // Fast debouncing - 10ms
+    if (millis() - lastScan < 50) return; // Slower scan - 50ms to reduce I2C conflicts
     lastScan = millis();
+    
+    yield(); // Critical: yield before I2C operations
     
     // Scan the 4x4 matrix using working method
     for (byte col = 0; col < COLS; col++) {
+        yield(); // Prevent watchdog reset during scanning
+        
         // Drive one column LOW (0), rest HIGH (1)
         byte col_mask = 0x0F;             // Lower 4 bits columns all HIGH initially
         col_mask &= ~(1 << col);          // Set current column LOW 
@@ -59,10 +66,14 @@ void scanKeyboard() {
 
         Wire.beginTransmission(PCF8574_ADDR);
         Wire.write(output);
-        if (Wire.endTransmission() != 0) continue; // Skip if I2C error
+        if (Wire.endTransmission() != 0) {
+            yield();
+            continue; // Skip if I2C error
+        }
         
         // Immediate read - no delay needed
         Wire.requestFrom(PCF8574_ADDR, 1);
+        yield(); // Allow background tasks
         if (Wire.available()) {
             byte data = Wire.read();
 
@@ -77,6 +88,8 @@ void scanKeyboard() {
                         keyboardState.keyPressed[keyIndex] = true;
                         keyboardState.lastKey = keyMatrix[row][col];
                         keyboardState.lastKeyTime = millis();
+                        
+                        yield(); // Allow other tasks before handling key
                         
                         // Immediately handle key press for instant response
                         handleKeyPress(keyMatrix[row][col]);
@@ -94,6 +107,8 @@ void scanKeyboard() {
                 }
             }
         }
+        
+        delayMicroseconds(100); // Small delay between columns to prevent I2C errors
     }
     
     // Reset all pins HIGH
@@ -114,11 +129,12 @@ void handleKeyPress(KeyAction key) {
     static KeyAction lastHandledKey = KEY_NONE;
     unsigned long currentTime = millis();
     
-    // If same key pressed within 200ms, ignore it (prevents holding key from spamming)
-    if (key == lastHandledKey && (currentTime - lastKeyHandleTime) < 200) {
+    // If same key pressed within 500ms, ignore it (prevents holding key from spamming)
+    if (key == lastHandledKey && (currentTime - lastKeyHandleTime) < 500) {
         return;
     }
     
+    yield(); // Critical: allow background tasks before processing
     lastKeyHandleTime = currentTime;
     lastHandledKey = key;
     
