@@ -42,7 +42,7 @@ void scanKeyboard() {
     if (!keyboardState.initialized) return;
     
     static unsigned long lastScan = 0;
-    if (millis() - lastScan < 50) return; // Debouncing
+    if (millis() - lastScan < 10) return; // Fast debouncing - 10ms
     lastScan = millis();
     
     // Scan the 4x4 matrix using working method
@@ -56,9 +56,9 @@ void scanKeyboard() {
 
         Wire.beginTransmission(PCF8574_ADDR);
         Wire.write(output);
-        Wire.endTransmission();
-        delayMicroseconds(50);
-
+        if (Wire.endTransmission() != 0) continue; // Skip if I2C error
+        
+        // Immediate read - no delay needed
         Wire.requestFrom(PCF8574_ADDR, 1);
         if (Wire.available()) {
             byte data = Wire.read();
@@ -70,62 +70,23 @@ void scanKeyboard() {
                     int keyIndex = row * COLS + col;
                     
                     if (!keyboardState.keyPressed[keyIndex]) {
-                        // Key just pressed
+                        // Key just pressed - immediate response
                         keyboardState.keyPressed[keyIndex] = true;
                         keyboardState.lastKey = keyMatrix[row][col];
                         keyboardState.lastKeyTime = millis();
-                        keyboardState.keyHoldTime = 0;
                         
-                        // Debug output
-                        Serial.print("Key pressed: ");
-                        Serial.print((char)keyMatrix[row][col]);
-                        Serial.print(" (row: ");
-                        Serial.print(row);
-                        Serial.print(", col: ");
-                        Serial.print(col);
-                        Serial.println(")");
+                        // Immediately handle key press for instant response
+                        handleKeyPress(keyMatrix[row][col]);
                         
-                        SerialBT.print("Key pressed: ");
-                        SerialBT.print(row);
-                        SerialBT.print(",");
-                        SerialBT.println(col);
-                    } else {
-                        // Key held down - check for long press
-                        keyboardState.keyHoldTime = millis() - keyboardState.lastKeyTime;
-                        
-                        // Long press detection (1 second)
-                        if (keyboardState.keyHoldTime > 1000) {
-                            KeyAction longPressKey = KEY_NONE;
-                            
-                            switch (keyMatrix[row][col]) {
-                                case KEY_STAR: longPressKey = KEY_MENU; break;
-                                case KEY_HASH: longPressKey = KEY_BACK; break;
-                                case KEY_5: longPressKey = KEY_SELECT; break;
-                                case KEY_2: longPressKey = KEY_UP; break;
-                                case KEY_8: longPressKey = KEY_DOWN; break;
-                                case KEY_4: longPressKey = KEY_LEFT; break;
-                                case KEY_6: longPressKey = KEY_RIGHT; break;
-                            }
-                            
-                            if (longPressKey != KEY_NONE) {
-                                handleKeyPress(longPressKey);
-                                keyboardState.keyPressed[keyIndex] = false; // Prevent repeat
-                                keyboardState.lastKey = KEY_NONE;
-                            }
-                        }
+                        // Debug output (reduced)
+                        SerialBT.print("K:");
+                        SerialBT.println((char)keyMatrix[row][col]);
                     }
                 } else {
-                    // Key not pressed
+                    // Key released
                     int keyIndex = row * COLS + col;
                     if (keyboardState.keyPressed[keyIndex]) {
-                        // Key just released
                         keyboardState.keyPressed[keyIndex] = false;
-                        
-                        // Process the key press (only if it wasn't a long press)
-                        if (keyboardState.lastKey == keyMatrix[row][col]) {
-                            handleKeyPress(keyboardState.lastKey);
-                            keyboardState.lastKey = KEY_NONE;
-                        }
                     }
                 }
             }

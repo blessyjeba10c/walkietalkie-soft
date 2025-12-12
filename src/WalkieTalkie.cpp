@@ -16,7 +16,7 @@ void initializeSystem() {
     Serial1.begin(9600, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
     
     // Initialize Bluetooth with aggressive keep-alive settings
-    SerialBT.begin("FATMAN"); // Bluetooth device name
+    SerialBT.begin("WalkieTalkie"); // Bluetooth device name
     // Remove timeout to prevent disconnection
     // SerialBT.setTimeout(500); 
     
@@ -69,7 +69,7 @@ void onSMSReceived(const DMRSMSMessage& message) {
 }
 
 void onCallReceived(const DMRCallInfo& callInfo) {
-    String output = "\n📞 Incoming Call:\n";
+    String output = "\n Incoming Call:\n";
     output += "From: 0x" + String(callInfo.contactID, HEX) + "\n";
     output += "Type: ";
     
@@ -88,7 +88,7 @@ void onCallEnded() {
 }
 
 void onEmergency(uint32_t sourceID) {
-    String output = "\n🚨 Emergency Alert!\n";
+    String output = "\n Emergency Alert!\n";
     output += "From: 0x" + String(sourceID, HEX) + "\n";
     SerialBT.print(output);
 }
@@ -194,7 +194,7 @@ void loopWalkieFeatures() {
         lastStatus = millis();
         
         // Show periodic status
-        SerialBT.print("📊 Ch:"); SerialBT.print(wtState.currentChannel);
+        SerialBT.print(" Ch:"); SerialBT.print(wtState.currentChannel);
         SerialBT.print(", Vol:"); SerialBT.print(wtState.volume);
         SerialBT.print(", RSSI:"); SerialBT.print(dmr.getRSSI());
         
@@ -315,7 +315,7 @@ void processGPSData(double lat, double lon, String soldierId, String commMode) {
     String jsonData = formatGPSToJSON(lat, lon, soldierId, commMode);
     
     // Output JSON to Serial and Bluetooth
-    SerialBT.println("\n📍 GPS Data Received:");
+    SerialBT.println("\n GPS Data Received:");
     SerialBT.println("JSON Format:");
     SerialBT.println(jsonData);
     SerialBT.println();
