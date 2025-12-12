@@ -66,7 +66,7 @@ struct DisplayState {
 extern DisplayState displayState;
 extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2;
 
-// Display functions
+// Core display rendering functions
 void initializeDisplay();
 void updateDisplay();
 void showMainScreen();
@@ -78,38 +78,3 @@ void addMessage(String message);
 void showMessage(String message, int duration = 2000);
 void displayError(String error);
 void displaySuccess(String success);
-
-// Menu system functions
-void initializeMenus();
-void showMenu();
-void navigateUp();
-void navigateDown();
-void selectMenuItem();
-void goBack();
-void createMainMenu();
-void createRadioMenu();
-void createSettingsMenu();
-void createGPSMenu();
-void createGSMMenu();
-void createEncryptionMenu();
-void createDebugMenu();
-void createRadioConfigMenu();
-void createSMSMenu();
-void executeMenuAction(String action);
-void startInput(String prompt, String action);
-void startMultiStepInput(String action, String prompts[], int stepCount);
-void handleMultiStepInput(char c);
-void nextInputStep();
-void completeMultiStepInput();
-void handleInput(char c);
-void cancelInput();
-void confirmInput();
-void showInputScreen();
-void captureCommandOutput(String command);
-void displayCapturedOutput();
-
-// Message overlay functions
-void addMessageToQueue(String message);
-void showMessageOverlay();
-void dismissCurrentMessage();
-bool hasMessagesInQueue();

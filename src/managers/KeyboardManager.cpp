@@ -1,5 +1,8 @@
 #include "KeyboardManager.h"
 #include "DisplayManager.h"
+#include "MenuManager.h"
+#include "InputManager.h"
+#include "MessageOverlay.h"
 #include "CommandProcessor.h"
 #include "BluetoothSerial.h"
 
