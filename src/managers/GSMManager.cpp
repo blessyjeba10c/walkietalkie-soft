@@ -142,33 +142,84 @@ void sendGSMFallbackSMS(String phoneNumber, String message) {
 }
 
 void checkIncomingGSMSMS() {
-    // Check for incoming SMS notifications using SIM800L library
-    if (gsm.available()) {
-        // For now, we'll use a simplified approach
-        // The SIM800L library doesn't have a direct incoming SMS check method
-        // so we'll keep basic serial monitoring for SMS notifications
-        if (Serial1.available()) {
-            String response = "";
-            unsigned long startTime = millis();
+    // Queue-based SMS checking (more reliable than event notifications)
+    // Query for all unread messages
+    Serial1.println("AT+CMGL=\"REC UNREAD\"");
+    delay(500); // Wait for response
+    
+    String response = "";
+    unsigned long startTime = millis();
+    while (millis() - startTime < 1000 && Serial1.available()) {
+        response += Serial1.readString();
+        delay(10);
+    }
+    
+    // Check if any messages were found
+    if (response.indexOf("+CMGL:") != -1) {
+        int index = 0;
+        int messagesFound = 0;
+        
+        while (true) {
+            int msgStart = response.indexOf("+CMGL:", index);
+            if (msgStart == -1) break;
             
-            while (millis() - startTime < 100 && Serial1.available()) {
-                response += (char)Serial1.read();
-                delay(1);
-            }
+            // Extract message index for deletion
+            int indexStart = msgStart + 7;
+            int indexEnd = response.indexOf(',', indexStart);
+            String msgIndexStr = response.substring(indexStart, indexEnd);
+            msgIndexStr.trim();
             
-            // Look for SMS notification: +CMTI: "SM",<index>
-            if (response.indexOf("+CMTI:") != -1) {
-                int indexStart = response.lastIndexOf(",") + 1;
-                if (indexStart > 0) {
-                    String indexStr = response.substring(indexStart);
-                    indexStr.trim();
-                    int smsIndex = indexStr.toInt();
-                    
-                    if (smsIndex > 0) {
-                        readGSMSMS(smsIndex);
-                    }
+            // Extract sender number
+            int phoneStart = response.indexOf('"', indexEnd) + 1;
+            int phoneEnd = response.indexOf('"', phoneStart);
+            String senderNumber = response.substring(phoneStart, phoneEnd);
+            
+            // Extract message body (next line after +CMGL)
+            int bodyStart = response.indexOf('\n', msgStart) + 1;
+            int bodyEnd = response.indexOf('\n', bodyStart);
+            if (bodyEnd == -1) bodyEnd = response.length();
+            String messageBody = response.substring(bodyStart, bodyEnd);
+            messageBody.trim();
+            
+            // Process valid messages
+            if (messageBody.length() > 0 && 
+                !messageBody.startsWith("OK") && 
+                !messageBody.startsWith("+CMGL") &&
+                !messageBody.startsWith("AT+")) {
+                
+                messagesFound++;
+                
+                SerialBT.println("\n📱 GSM SMS RECEIVED");
+                SerialBT.println("From: " + senderNumber);
+                SerialBT.println("Message: " + messageBody);
+                SerialBT.println("Index: " + msgIndexStr);
+                SerialBT.println("━━━━━━━━━━━━━━━━━━━━━━\n");
+                
+                // Add to message history
+                extern void addMessage(String message);
+                String historyEntry = "GSM:" + messageBody;
+                addMessage(historyEntry);
+                
+                // Check if this is a GPS message and parse it
+                if (messageBody.startsWith("GPS ")) {
+                    extern void parseIncomingGPS(String message, String commMode);
+                    parseIncomingGPS(messageBody, "GSM");
                 }
+                
+                // Delete message after reading
+                delay(100);
+                Serial1.println("AT+CMGD=" + msgIndexStr);
+                delay(200);
+                
+                SerialBT.println("[GSM] Deleted message " + msgIndexStr);
             }
+            
+            index = bodyEnd + 1;
+            if (index >= response.length()) break;
+        }
+        
+        if (messagesFound > 0) {
+            SerialBT.println("[GSM] Processed " + String(messagesFound) + " message(s)");
         }
     }
 }
@@ -192,6 +243,11 @@ void readGSMSMS(int index) {
                 message.trim();
                 
                 SerialBT.println("Parsed message: " + message);
+                
+                // Add to message history
+                extern void addMessage(String message);
+                String historyEntry = "GSM:" + message;
+                addMessage(historyEntry);
                 
                 // Check if this is a GPS message and parse it
                 if (message.startsWith("GPS ")) {

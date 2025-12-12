@@ -5,37 +5,28 @@
 extern BluetoothSerial SerialBT;
 
 LoRaState loraState;
+LoRaReliable loraReliable(LORA_SS_PIN, LORA_RST_PIN, LORA_DIO0_PIN);
 
 void initializeLoRa() {
     SerialBT.println("📡 Initializing LoRa module...");
     
-    // Set LoRa pins
-    LoRa.setPins(LORA_SS_PIN, LORA_RST_PIN, LORA_DIO0_PIN);
+    // Set debug output to Bluetooth
+    loraReliable.setDebugOutput(&SerialBT);
     
     // Initialize LoRa with Asian frequency
-    int attempts = 0;
-    while (!LoRa.begin(LORA_FREQUENCY) && attempts < 10) {
-        SerialBT.print(".");
-        delay(500);
-        attempts++;
-    }
-    
-    if (attempts < 10) {
-        // LoRa initialized successfully
-       // LoRa.setSyncWord(LORA_SYNC_WORD);
-        LoRa.setTxPower(20); // Set max transmission power
-        LoRa.setSpreadingFactor(7); // Balance between range and speed
-        LoRa.setSignalBandwidth(125E3); // Standard bandwidth
-        LoRa.setCodingRate4(5); // Error correction
-        
+    if (loraReliable.begin(LORA_FREQUENCY)) {
         loraState.initialized = true;
         loraState.available = true;
         
         SerialBT.println("✅ LoRa module initialized");
         SerialBT.println("📡 LoRa Config:");
         SerialBT.println("  Frequency: 433MHz");
-        SerialBT.println("  Sync Word: 0xF3");
         SerialBT.println("  TX Power: 20dBm");
+        SerialBT.println("  Spreading Factor: 7");
+        SerialBT.println("  Bandwidth: 125kHz");
+        SerialBT.println("  Coding Rate: 4/5");
+        SerialBT.println("  CRC: Enabled");
+        SerialBT.println("  ACK Mode: " + String(loraState.ackMode ? "ENABLED" : "DISABLED"));
     } else {
         SerialBT.println("❌ LoRa module not responding");
         loraState.initialized = false;
@@ -52,30 +43,34 @@ bool sendLoRaMessage(String message) {
     SerialBT.println("📡 Sending LoRa message...");
     SerialBT.println("Message: " + message);
     
-    // Send LoRa packet
-    LoRa.beginPacket();
-    LoRa.print(message);
-    LoRa.endPacket();
+    bool success;
+    if (loraState.ackMode) {
+        // Send with ACK and retry
+        success = loraReliable.send(message, loraState.maxRetries, loraState.ackTimeout);
+    } else {
+        // Broadcast mode - no ACK (single retry)
+        success = loraReliable.send(message, 1, 0);
+    }
     
-    SerialBT.println("✅ LoRa message sent");
-    return true;
+    if (success) {
+        SerialBT.println("✅ LoRa message sent successfully");
+    } else {
+        SerialBT.println("❌ LoRa message failed after retries");
+    }
+    
+    return success;
 }
 
 void checkLoRaMessages() {
     if (!loraState.initialized) return;
     
     // Check for incoming LoRa packets
-    int packetSize = LoRa.parsePacket();
-    if (packetSize) {
-        // Read packet
-        String message = "";
-        while (LoRa.available()) {
-            message += (char)LoRa.read();
-        }
-        
+    String message = loraReliable.receive();
+    
+    if (message.length() > 0) {
         // Get signal quality
-        loraState.rssi = LoRa.packetRssi();
-        loraState.snr = LoRa.packetSnr();
+        loraState.rssi = loraReliable.getRSSI();
+        loraState.snr = loraReliable.getSNR();
         loraState.lastMessage = message;
         loraState.lastMessageTime = millis();
         
@@ -83,7 +78,6 @@ void checkLoRaMessages() {
         SerialBT.println("Message: " + message);
         SerialBT.println("RSSI: " + String(loraState.rssi) + " dBm");
         SerialBT.println("SNR: " + String(loraState.snr) + " dB");
-        SerialBT.println("Packet Size: " + String(packetSize));
         
         // Handle the received message
         handleLoRaMessage(message);
@@ -91,6 +85,11 @@ void checkLoRaMessages() {
 }
 
 void handleLoRaMessage(String message) {
+    // Add to message history
+    extern void addMessage(String message);
+    String historyEntry = "LoRa:" + message;
+    addMessage(historyEntry);
+    
     // Check if this is a GPS message and parse it
     if (message.startsWith("GPS ")) {
         // Parse GPS coordinates from LoRa
@@ -112,4 +111,20 @@ bool isLoRaAvailable() {
 
 int getLoRaRSSI() {
     return loraState.rssi;
+}
+
+float getLoRaSNR() {
+    return loraState.snr;
+}
+
+void enableLoRaAck() {
+    loraState.ackMode = true;
+    SerialBT.println("✅ LoRa ACK mode enabled");
+    SerialBT.println("   Retries: " + String(loraState.maxRetries));
+    SerialBT.println("   Timeout: " + String(loraState.ackTimeout) + " ms");
+}
+
+void disableLoRaAck() {
+    loraState.ackMode = false;
+    SerialBT.println("✅ LoRa ACK mode disabled (broadcast only)");
 }

@@ -15,8 +15,10 @@ void initializeSystem() {
     // Initialize GSM module on Serial1
     Serial1.begin(9600, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
     
-    // Initialize Bluetooth
+    // Initialize Bluetooth with aggressive keep-alive settings
     SerialBT.begin("FATMAN"); // Bluetooth device name
+    // Remove timeout to prevent disconnection
+    // SerialBT.setTimeout(500); 
     
     // Initialize GSM module
     initializeGSM();
@@ -53,6 +55,11 @@ void onSMSReceived(const DMRSMSMessage& message) {
     output += "From: 0x" + String(message.sourceID, HEX) + "\n";
     output += "Message: " + String(message.message) + "\n";
     SerialBT.print(output);
+    
+    // Add to message history
+    extern void addMessage(String message);
+    String historyEntry = "DMR:" + String(message.message);
+    addMessage(historyEntry);
     
     // Check if this is a GPS message and parse it
     String msgStr = String(message.message);
@@ -237,10 +244,25 @@ void loopLowLevel() {
 }
 
 void handleBluetoothCommands() {
+    // Process incoming commands without hasClient check (more stable)
     if (SerialBT.available()) {
-        String command = SerialBT.readStringUntil('\n');
+        String command = "";
+        
+        // Read with timeout protection
+        unsigned long startTime = millis();
+        while (SerialBT.available() && (millis() - startTime < 100)) {
+            char c = SerialBT.read();
+            if (c == '\n' || c == '\r') {
+                break;
+            }
+            command += c;
+            delay(1);
+        }
+        
         command.trim();
-        processCommand(&SerialBT, command);
+        if (command.length() > 0) {
+            processCommand(&SerialBT, command);
+        }
     }
 }
 

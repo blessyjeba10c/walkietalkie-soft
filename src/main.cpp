@@ -30,7 +30,7 @@ TaskHandle_t keyboardTaskHandle = NULL;
 #define GPS_STACK_SIZE         2048
 #define GSM_STACK_SIZE         3072
 #define LORA_STACK_SIZE        2048
-#define BLUETOOTH_STACK_SIZE   3072
+#define BLUETOOTH_STACK_SIZE   4096  // Increased for stability
 #define DISPLAY_STACK_SIZE     2048
 #define KEYBOARD_STACK_SIZE    1024
 
@@ -69,10 +69,10 @@ void gpsTask(void *parameter) {
 
 void gsmTask(void *parameter) {
     while (true) {
-        // Check for incoming GSM SMS
+        // Check for incoming GSM SMS (queue-based)
         checkIncomingGSMSMS();
         
-        vTaskDelay(pdMS_TO_TICKS(500)); // 500ms delay - SMS checking
+        vTaskDelay(pdMS_TO_TICKS(3000)); // 3 seconds delay - Queue-based SMS checking
     }
 }
 
@@ -86,11 +86,32 @@ void loraTask(void *parameter) {
 }
 
 void bluetoothTask(void *parameter) {
+    static unsigned long lastKeepAlive = 0;
+    static bool wasConnected = false;
+    
     while (true) {
+        // Send keep-alive every 30 seconds to prevent timeout
+        unsigned long currentTime = millis();
+        if (currentTime - lastKeepAlive >= 30000) {
+            lastKeepAlive = currentTime;
+            if (SerialBT.hasClient()) {
+                SerialBT.print(""); // Empty write to keep connection alive
+            }
+        }
+        
+        // Check connection status
+        bool isConnected = SerialBT.hasClient();
+        if (isConnected && !wasConnected) {
+            SerialBT.println("\n✅ Bluetooth client connected!");
+            wasConnected = true;
+        } else if (!isConnected && wasConnected) {
+            wasConnected = false;
+        }
+        
         // Handle Bluetooth commands and communication
         handleBluetoothCommands();
         
-        vTaskDelay(pdMS_TO_TICKS(20)); // 20ms delay - responsive user interface
+        vTaskDelay(pdMS_TO_TICKS(10)); // 10ms delay - more responsive
     }
 }
 
@@ -213,6 +234,6 @@ void setup() {
 
 void loop() {
     // FreeRTOS scheduler handles everything
-    // Main loop does nothing - tasks run independently
-    vTaskDelete(NULL); // Delete the setup task since we don't need it anymore
+    // Keep loop alive to feed watchdog and maintain Bluetooth
+    vTaskDelay(pdMS_TO_TICKS(1000)); // 1 second delay
 }

@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <LoRa.h>
+#include <LoRaReliable.h>
 
 // LoRa pin definitions
 #define LORA_SS_PIN 5
@@ -11,7 +11,6 @@
 
 // LoRa frequency for Asia
 #define LORA_FREQUENCY 433E6
-#define LORA_SYNC_WORD 0xF3
 
 // LoRa state structure
 struct LoRaState {
@@ -21,9 +20,15 @@ struct LoRaState {
     float snr = 0.0;
     String lastMessage = "";
     unsigned long lastMessageTime = 0;
+    
+    // ACK mode (now handled by LoRaReliable)
+    bool ackMode = true; // Default to ACK mode enabled
+    int maxRetries = 3;
+    unsigned long ackTimeout = 2000; // 2 seconds
 };
 
 extern LoRaState loraState;
+extern LoRaReliable loraReliable;
 
 // LoRa functions
 void initializeLoRa();
@@ -32,3 +37,6 @@ void checkLoRaMessages();
 void handleLoRaMessage(String message);
 bool isLoRaAvailable();
 int getLoRaRSSI();
+float getLoRaSNR();
+void enableLoRaAck();
+void disableLoRaAck();

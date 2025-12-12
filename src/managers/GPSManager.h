@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <TinyGPSPlus.h>
 
 // GPS state structure
 struct GPSState {
@@ -30,6 +31,7 @@ struct GPSState {
 };
 
 extern GPSState gpsState;
+extern TinyGPSPlus gps;
 
 // GPS functions
 void initializeGPS();

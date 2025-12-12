@@ -66,6 +66,7 @@ void showMainScreen();
 void showStatusScreen();
 void showGPSScreen();
 void showGSMScreen();
+void showMessageHistory();
 void addMessage(String message);
 void showMessage(String message, int duration = 2000);
 void displayError(String error);

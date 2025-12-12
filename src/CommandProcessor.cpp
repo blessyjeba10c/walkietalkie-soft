@@ -2,6 +2,7 @@
 #include "WalkieTalkie.h"
 #include "managers/GPSManager.h"
 #include "managers/GSMManager.h"
+#include "managers/DisplayManager.h"
 #include "commands/GSMCommands.h"
 #include "commands/GPSCommands.h"
 #include "commands/LoRaCommands.h"
@@ -14,6 +15,8 @@ extern DMR828S dmr;
 extern WalkieTalkieState wtState;
 extern BluetoothSerial SerialBT;
 extern DemoMode currentMode;
+extern DisplayState displayState;
+extern DemoMode currentMode;
 
 
 void processCommand(Stream* stream, String command) {
@@ -24,6 +27,9 @@ void processCommand(Stream* stream, String command) {
         handleGPSCommand(stream, command);
     }
     else if (command.startsWith("lora")) {
+        handleLoRaCommand(stream, command);
+    }
+    else if (command == "ackon" || command == "ackoff") {
         handleLoRaCommand(stream, command);
     }
     else if (command.startsWith("encrypt")) {
@@ -203,6 +209,16 @@ void processCommand(Stream* stream, String command) {
         stream->println("\\n📊 SMS Status Info:");
         stream->println("Use this to check if waiting for SMS response");
     }
+    else if (command == "messages" || command == "history") {
+        stream->println("\\n📨 Message History (Last 6):");
+        for (int i = 0; i < 6; i++) {
+            int msgIndex = (displayState.messageIndex - 1 - i + 6) % 6;
+            if (displayState.messages[msgIndex].length() > 0) {
+                stream->print(String(i + 1) + ". ");
+                stream->println(displayState.messages[msgIndex]);
+            }
+        }
+    }
     else if (command == "bt") {
         // Bluetooth specific command
         stream->println("📶 Bluetooth Status: Connected");
@@ -336,6 +352,12 @@ void showCommandsTo(Stream* stream) {
     stream->println("  lorastatus              - Check LoRa module status");
     stream->println("  lorasms <message>       - Send message via LoRa");
     stream->println("  loragps <callsign>      - Send GPS location via LoRa");
+    stream->println("  ackon                   - Enable LoRa ACK mode");
+    stream->println("  ackoff                  - Disable LoRa ACK mode");
+    stream->println();
+    stream->println("Message History:");
+    stream->println("  messages                - View last 6 received messages");
+    stream->println("  history                 - Same as messages");
     stream->println();
     stream->println("Examples:");
     stream->println("  sms 123 Hello World");

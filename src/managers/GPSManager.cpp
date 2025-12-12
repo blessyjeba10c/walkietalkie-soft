@@ -1,29 +1,56 @@
 #include "GPSManager.h"
+#include "DMR828S.h"
+#include "WalkieTalkie.h"
+#include "BluetoothSerial.h"
+
+extern DMR828S dmr;
+extern WalkieTalkieState wtState;
+extern BluetoothSerial SerialBT;
 
 GPSState gpsState;
+TinyGPSPlus gps;
 
 void initializeGPS() {
     // GPS module on Serial0 (9600 baud is standard for most GPS modules)
     Serial.begin(9600); // GPS module baud rate
     delay(1000);
+    SerialBT.println("📍 GPS module initialized (TinyGPS++)");
 }
 
 void readGPS() {
-    // Read NMEA sentences from GPS module on Serial0
-    static String sentence = "";
-    
+    // Feed data from Serial to TinyGPS++
     while (Serial.available()) {
         char c = Serial.read();
-        
-        if (c == '\n') {
-            // Process complete sentence
-            if (sentence.length() > 0) {
-                parseNMEA(sentence);
-                sentence = "";
-            }
-        } else if (c != '\r') {
-            sentence += c;
+        gps.encode(c);
+    }
+    
+    // Update GPS state from TinyGPS++ data
+    if (gps.location.isUpdated()) {
+        if (gps.location.isValid()) {
+            gpsState.latitude = gps.location.lat();
+            gpsState.longitude = gps.location.lng();
+            gpsState.lastLatitude = gpsState.latitude;
+            gpsState.lastLongitude = gpsState.longitude;
+            gpsState.hasValidFix = true;
+            gpsState.hasLastLocation = true;
+        } else {
+            gpsState.hasValidFix = false;
         }
+    }
+    
+    // Update time data
+    if (gps.time.isUpdated() && gps.time.isValid()) {
+        gpsState.gpsHour = gps.time.hour();
+        gpsState.gpsMinute = gps.time.minute();
+        gpsState.gpsSecond = gps.time.second();
+        gpsState.hasValidTime = true;
+    }
+    
+    // Update date data
+    if (gps.date.isUpdated() && gps.date.isValid()) {
+        gpsState.gpsDay = gps.date.day();
+        gpsState.gpsMonth = gps.date.month();
+        gpsState.gpsYear = gps.date.year();
     }
     
     // Update GPS read timestamp
@@ -31,94 +58,10 @@ void readGPS() {
 }
 
 void parseNMEA(String sentence) {
-    // Parse GPGGA or GNGGA sentences for position data
-    if (sentence.startsWith("$GPGGA") || sentence.startsWith("$GNGGA")) {
-        // Split sentence by commas
-        int commaCount = 0;
-        String fields[15]; // GPGGA has up to 14 fields
-        int startIndex = 0;
-        
-        for (int i = 0; i < sentence.length() && commaCount < 14; i++) {
-            if (sentence.charAt(i) == ',') {
-                fields[commaCount] = sentence.substring(startIndex, i);
-                startIndex = i + 1;
-                commaCount++;
-            }
-        }
-        // Get last field
-        if (commaCount < 14) {
-            fields[commaCount] = sentence.substring(startIndex);
-        }
-        
-        // Check if we have a valid fix (field 6)
-        if (fields[6].toInt() > 0) {
-            // Parse time (field 1) - format HHMMSS.sss
-            if (fields[1].length() >= 6) {
-                String timeStr = fields[1];
-                gpsState.gpsHour = timeStr.substring(0, 2).toInt();
-                gpsState.gpsMinute = timeStr.substring(2, 4).toInt();
-                gpsState.gpsSecond = timeStr.substring(4, 6).toInt();
-                gpsState.hasValidTime = true;
-            }
-            
-            // Parse latitude (field 2) and direction (field 3)
-            if (fields[2].length() > 0 && fields[4].length() > 0) {
-                double lat = fields[2].toDouble();
-                double lon = fields[4].toDouble();
-                
-                // Convert from DDMM.MMMM to decimal degrees
-                int latDeg = (int)(lat / 100);
-                double latMin = lat - (latDeg * 100);
-                gpsState.latitude = latDeg + (latMin / 60.0);
-                if (fields[3] == "S") gpsState.latitude = -gpsState.latitude;
-                
-                int lonDeg = (int)(lon / 100);
-                double lonMin = lon - (lonDeg * 100);
-                gpsState.longitude = lonDeg + (lonMin / 60.0);
-                if (fields[5] == "W") gpsState.longitude = -gpsState.longitude;
-                
-                // Store as last known location
-                gpsState.lastLatitude = gpsState.latitude;
-                gpsState.lastLongitude = gpsState.longitude;
-                
-                gpsState.hasValidFix = true;
-                gpsState.hasLastLocation = true;
-            }
-        } else {
-            gpsState.hasValidFix = false;
-        }
-    }
-    
-    // Parse GPRMC or GNRMC sentences for date information
-    if (sentence.startsWith("$GPRMC") || sentence.startsWith("$GNRMC")) {
-        // Split sentence by commas
-        int commaCount = 0;
-        String fields[12]; // GPRMC has up to 11 fields
-        int startIndex = 0;
-        
-        for (int i = 0; i < sentence.length() && commaCount < 11; i++) {
-            if (sentence.charAt(i) == ',') {
-                fields[commaCount] = sentence.substring(startIndex, i);
-                startIndex = i + 1;
-                commaCount++;
-            }
-        }
-        // Get last field
-        if (commaCount < 11) {
-            fields[commaCount] = sentence.substring(startIndex);
-        }
-        
-        // Check if data is valid (field 2)
-        if (fields[2] == "A") {
-            // Parse date (field 9) - format DDMMYY
-            if (fields[9].length() >= 6) {
-                String dateStr = fields[9];
-                gpsState.gpsDay = dateStr.substring(0, 2).toInt();
-                gpsState.gpsMonth = dateStr.substring(2, 4).toInt();
-                int year = dateStr.substring(4, 6).toInt();
-                gpsState.gpsYear = (year < 80) ? 2000 + year : 1900 + year; // Y2K handling
-            }
-        }
+    // Legacy function - now handled by TinyGPS++
+    // Feed the sentence to TinyGPS++
+    for (unsigned int i = 0; i < sentence.length(); i++) {
+        gps.encode(sentence.charAt(i));
     }
 }
 
@@ -169,8 +112,50 @@ void handleContinuousGPS() {
         
         gpsState.lastTransmission = currentTime;
         
-        // Send GPS location notification - actual sending handled by main
-        // This function just manages timing
+        // Get GPS data
+        double lat, lon;
+        String status;
+        String gpsMessage;
+        
+        if (gpsState.hasValidFix) {
+            // Current GPS fix available
+            lat = gpsState.latitude;
+            lon = gpsState.longitude;
+            status = "CURRENT";
+            gpsMessage = "GPS " + status + ": ";
+            gpsMessage += wtState.soldierID + ",";
+            gpsMessage += String(lat, 6) + "," + String(lon, 6);
+        } else if (gpsState.hasLastLocation) {
+            // Use last known location
+            lat = gpsState.lastLatitude;
+            lon = gpsState.lastLongitude;
+            status = "LAST GPS";
+            gpsMessage = "GPS " + status + ": ";
+            gpsMessage += wtState.soldierID + ",";
+            gpsMessage += String(lat, 6) + "," + String(lon, 6);
+        } else {
+            // No GPS fix available
+            status = "NO FIX";
+            gpsMessage = "GPS NO FIX: " + wtState.soldierID + ",waiting for signal";
+        }
+        
+        // Send via SMS
+        if (dmr.sendSMS(gpsState.targetID, gpsMessage.c_str())) {
+            SerialBT.print("📍 Auto-GPS sent to 0x");
+            SerialBT.print(gpsState.targetID, HEX);
+            SerialBT.print(" (");
+            SerialBT.print(status);
+            SerialBT.print(")");
+            if (status != "NO FIX") {
+                SerialBT.print(": ");
+                SerialBT.print(lat, 6);
+                SerialBT.print(", ");
+                SerialBT.print(lon, 6);
+            }
+            SerialBT.println();
+        } else {
+            SerialBT.println("❌ Auto-GPS transmission failed");
+        }
     }
 }
 

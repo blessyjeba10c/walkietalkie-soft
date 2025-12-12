@@ -14,6 +14,15 @@ void handleLoRaCommand(Stream* stream, String command) {
         stream->println(loraState.initialized ? "YES" : "NO");
         stream->print("Available: ");
         stream->println(loraState.available ? "YES" : "NO");
+        stream->print("ACK Mode: ");
+        stream->println(loraState.ackMode ? "ENABLED" : "DISABLED");
+        if (loraState.ackMode) {
+            stream->print("Max Retries: ");
+            stream->println(loraState.maxRetries);
+            stream->print("ACK Timeout: ");
+            stream->print(loraState.ackTimeout);
+            stream->println(" ms");
+        }
         if (loraState.initialized) {
             stream->print("Last RSSI: ");
             stream->print(loraState.rssi);
@@ -28,6 +37,16 @@ void handleLoRaCommand(Stream* stream, String command) {
                 stream->println(loraState.lastMessage);
             }
         }
+    }
+    else if (command == "ackon") {
+        enableLoRaAck();
+        stream->println("✅ LoRa ACK mode enabled");
+        stream->println("Messages will wait for acknowledgment");
+    }
+    else if (command == "ackoff") {
+        disableLoRaAck();
+        stream->println("✅ LoRa ACK mode disabled");
+        stream->println("Messages will be broadcast without ACK");
     }
     else if (command.startsWith("lorasms ")) {
         String message = command.substring(8);

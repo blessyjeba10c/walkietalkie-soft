@@ -50,6 +50,8 @@ void updateDisplay() {
             showGPSScreen();
         } else if (displayState.currentScreen == "gsm") {
             showGSMScreen();
+        } else if (displayState.currentScreen == "messages") {
+            showMessageHistory();
         }
     }
 }
@@ -172,6 +174,42 @@ void showGSMScreen() {
     u8g2.sendBuffer();
 }
 
+void showMessageHistory() {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_5x7_tf);
+    
+    u8g2.drawStr(0, 8, "Message History");
+    u8g2.drawHLine(0, 10, 128);
+    
+    // Display last 6 messages
+    int y = 18;
+    int lineHeight = 9;
+    int maxCharsPerLine = 21;
+    
+    // Start from the most recent message
+    for (int i = 0; i < 6; i++) {
+        // Calculate the index to display messages in reverse chronological order
+        int msgIndex = (displayState.messageIndex - 1 - i + 6) % 6;
+        
+        if (displayState.messages[msgIndex].length() > 0) {
+            String msg = displayState.messages[msgIndex];
+            
+            // Truncate if too long
+            if (msg.length() > maxCharsPerLine) {
+                msg = msg.substring(0, maxCharsPerLine - 3) + "...";
+            }
+            
+            u8g2.drawStr(0, y, msg.c_str());
+            y += lineHeight;
+        }
+    }
+    
+    u8g2.setFont(u8g2_font_4x6_tf);
+    u8g2.drawStr(0, 62, "#=Back");
+    
+    u8g2.sendBuffer();
+}
+
 void addMessage(String message) {
     displayState.messages[displayState.messageIndex] = message;
     displayState.messageIndex = (displayState.messageIndex + 1) % 6;
@@ -289,8 +327,8 @@ void createMainMenu() {
     displayState.currentMenu.items[2] = {"Encryption", "encryption_menu", true};
     displayState.currentMenu.items[3] = {"SMS & GSM", "sms_menu", true};
     displayState.currentMenu.items[4] = {"GPS Control", "gps_menu", true};
-    displayState.currentMenu.items[5] = {"Debug Tools", "debug_menu", true};
-    displayState.currentMenu.items[6] = {"System Info", "system_info", false};
+    displayState.currentMenu.items[5] = {"Message History", "show_messages", false};
+    displayState.currentMenu.items[6] = {"Debug Tools", "debug_menu", true};
     displayState.currentMenu.items[7] = {"Exit Menu", "exit_menu", false};
 }
 
@@ -558,6 +596,10 @@ void executeMenuAction(String action) {
     if (action == "exit_menu") {
         displayState.inMenu = false;
         showMainScreen();
+    } else if (action == "show_messages") {
+        displayState.inMenu = false;
+        displayState.currentScreen = "messages";
+        showMessageHistory();
     } else if (action == "back") {
         goBack();
     } else if (action == "send_position") {
