@@ -108,18 +108,14 @@ void createEncryptionMenu() {
 }
 
 void createSMSMenu() {
-    displayState.currentMenu.title = "Communication";
+    displayState.currentMenu.title = "Send SMS";
     displayState.currentMenu.selectedItem = 0;
-    displayState.currentMenu.itemCount = 8;
+    displayState.currentMenu.itemCount = 4;
     
-    displayState.currentMenu.items[0] = {"Send SMS (DMR)", "input_sms", false};
-    displayState.currentMenu.items[1] = {"Send LoRa Msg", "input_lorasms", false};
+    displayState.currentMenu.items[0] = {"Send DMR SMS", "input_sms", false};
+    displayState.currentMenu.items[1] = {"Send LoRa SMS", "input_lorasms", false};
     displayState.currentMenu.items[2] = {"Send GSM SMS", "input_gsmsms", false};
-    displayState.currentMenu.items[3] = {"Smart Send", "input_smartsend", false};
-    displayState.currentMenu.items[4] = {"Set Soldier ID", "input_soldierid", false};
-    displayState.currentMenu.items[5] = {"Comm Status", "comm_status_menu", true};
-    displayState.currentMenu.items[6] = {"GSM Control", "gsm_menu", true};
-    displayState.currentMenu.items[7] = {"Back", "back", false};
+    displayState.currentMenu.items[3] = {"Back", "back", false};
 }
 
 void createDebugMenu() {
@@ -150,16 +146,17 @@ void createCommStatusMenu() {
 void createSettingsMenu() {
     displayState.currentMenu.title = "SETTINGS";
     displayState.currentMenu.selectedItem = 0;
-    displayState.currentMenu.itemCount = 8;
+    displayState.currentMenu.itemCount = 9;
     
-    displayState.currentMenu.items[0] = {"Set Channel", "input_channel", false};
-    displayState.currentMenu.items[1] = {"Set Volume", "input_volume", false};
-    displayState.currentMenu.items[2] = {"Set Frequency", "input_frequency", false};
-    displayState.currentMenu.items[3] = {"GSM Phone", "input_gsmphone", false};
-    displayState.currentMenu.items[4] = {"LoRa Config", "lora_menu", true};
-    displayState.currentMenu.items[5] = {"Encryption", "encryption_menu", true};
-    displayState.currentMenu.items[6] = {"Debug Tools", "debug_menu", true};
-    displayState.currentMenu.items[7] = {"Back", "back", false};
+    displayState.currentMenu.items[0] = {"Send SMS", "sms_menu", true};
+    displayState.currentMenu.items[1] = {"Set Channel", "input_channel", false};
+    displayState.currentMenu.items[2] = {"Set Volume", "input_volume", false};
+    displayState.currentMenu.items[3] = {"Set Frequency", "input_frequency", false};
+    displayState.currentMenu.items[4] = {"GSM Phone", "input_gsmphone", false};
+    displayState.currentMenu.items[5] = {"LoRa Config", "lora_menu", true};
+    displayState.currentMenu.items[6] = {"Encryption", "encryption_menu", true};
+    displayState.currentMenu.items[7] = {"Debug Tools", "debug_menu", true};
+    displayState.currentMenu.items[8] = {"Back", "back", false};
 }
 
 void createLoRaMenu() {
@@ -245,6 +242,8 @@ void selectMenuItem() {
             createGroundMenu();
         } else if (selectedItem.action == "settings_menu") {
             createSettingsMenu();
+        } else if (selectedItem.action == "sms_menu") {
+            createSMSMenu();
         } else if (selectedItem.action == "lora_menu") {
             createLoRaMenu();
         } else if (selectedItem.action == "encryption_menu") {
