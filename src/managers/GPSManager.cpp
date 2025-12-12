@@ -78,6 +78,9 @@ void sendGPSLocation(Stream* stream, uint32_t targetID) {
         lon = gpsState.lastLongitude;
         status = "LAST GPS";
     } else {
+        lat = 29.863594615284676;
+        lon = 77.89650459615501;
+        status = "DEFAULT";
         lat = 29.938971327453903;
         lon = 77.56449807342506;
         status = "DEFAULT";
@@ -134,7 +137,13 @@ void handleContinuousGPS() {
             gpsMessage += wtState.soldierID + ",";
             gpsMessage += String(lat, 6) + "," + String(lon, 6);
         } else {
-            // No GPS fix available
+            // No GPS fix available - use default location
+            lat = 29.863594615284676;
+            lon = 77.89650459615501;
+            status = "DEFAULT";
+            gpsMessage = "GPS " + status + ": ";
+            gpsMessage += wtState.soldierID + ",";
+            gpsMessage += String(lat, 6) + "," + String(lon, 6);
             status = "NO FIX";
             gpsMessage = "GPS NO FIX: " + wtState.soldierID + ",waiting for signal";
         }

@@ -27,8 +27,8 @@ void handleGPSCommand(Stream* stream, String command) {
                 lon = gpsState.lastLongitude;
                 status = "LAST GPS";
             } else {
-                lat = 29.938971327453903;
-                lon = 77.56449807342506;
+                lat = 29.863594615284676;
+                lon = 77.89650459615501;
                 status = "DEFAULT";
             }
             

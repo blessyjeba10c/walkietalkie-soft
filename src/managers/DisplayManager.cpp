@@ -150,9 +150,15 @@ void showGPSScreen() {
         snprintf(lonLine, sizeof(lonLine), "Lon: %.6f", gpsState.longitude);
         u8g2.drawStr(0, 45, lonLine);
     } else {
-        u8g2.drawStr(0, 25, "Status: SEARCHING");
-        u8g2.drawStr(0, 35, "Satellites: --");
-        u8g2.drawStr(0, 45, "Waiting for fix...");
+        u8g2.drawStr(0, 25, "Status: DEFAULT");
+        
+        char latLine[32];
+        snprintf(latLine, sizeof(latLine), "Lat: 29.863595");
+        u8g2.drawStr(0, 35, latLine);
+        
+        char lonLine[32]; 
+        snprintf(lonLine, sizeof(lonLine), "Lon: 77.896505");
+        u8g2.drawStr(0, 45, lonLine);
     }
     
     u8g2.setFont(u8g2_font_5x7_tf);
