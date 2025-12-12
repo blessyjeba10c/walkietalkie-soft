@@ -2,10 +2,13 @@
 #include "DMR828S.h"
 #include "WalkieTalkie.h"
 #include "BluetoothSerial.h"
+#include "managers/LoRaManager.h"
+#include "managers/GSMManager.h"
 
 extern DMR828S dmr;
 extern WalkieTalkieState wtState;
 extern BluetoothSerial SerialBT;
+extern GSMState gsmState;
 
 GPSState gpsState;
 TinyGPSPlus gps;
@@ -148,10 +151,45 @@ void handleContinuousGPS() {
             gpsMessage = "GPS NO FIX: " + wtState.soldierID + ",waiting for signal";
         }
         
-        // Send via SMS
-        if (dmr.sendSMS(gpsState.targetID, gpsMessage.c_str())) {
-            SerialBT.print("📍 Auto-GPS sent to 0x");
-            SerialBT.print(gpsState.targetID, HEX);
+        // Send via fallback system: DMR → LoRa → GSM
+        bool sent = false;
+        String commMethod = "";
+        
+        // Try DMR first
+        if (!sent && gpsState.targetID != 0) {
+            if (dmr.sendSMS(gpsState.targetID, gpsMessage.c_str())) {
+                sent = true;
+                commMethod = "DMR";
+            } else {
+                SerialBT.println("⚠️ Auto-GPS DMR failed, trying LoRa...");
+            }
+        }
+        
+        // Try LoRa second
+        if (!sent && isLoRaAvailable()) {
+            if (sendLoRaMessage(gpsMessage)) {
+                sent = true;
+                commMethod = "LoRa";
+            } else {
+                SerialBT.println("⚠️ Auto-GPS LoRa failed, trying GSM...");
+            }
+        }
+        
+        // Try GSM last
+        if (!sent && gsmState.initialized && gsmState.networkRegistered) {
+            if (gsmState.phoneNumber.length() > 0) {
+                sendGSMFallbackSMS(gsmState.phoneNumber, gpsMessage);
+                sent = true;
+                commMethod = "GSM";
+            } else {
+                SerialBT.println("❌ GSM phone number not configured");
+            }
+        }
+        
+        // Report result
+        if (sent) {
+            SerialBT.print("📍 Auto-GPS sent via ");
+            SerialBT.print(commMethod);
             SerialBT.print(" (");
             SerialBT.print(status);
             SerialBT.print(")");
@@ -163,7 +201,7 @@ void handleContinuousGPS() {
             }
             SerialBT.println();
         } else {
-            SerialBT.println("❌ Auto-GPS transmission failed");
+            SerialBT.println("❌ Auto-GPS transmission failed - all methods unavailable");
         }
     }
 }
