@@ -317,12 +317,8 @@ void showMessage(String message, int duration) {
     u8g2.drawStr(0, 62, "#=Back");
     
     u8g2.sendBuffer();
-    delay(duration);
-    
-    // Return to main screen after showing message
-    if (!displayState.inMenu) {
-        showMainScreen();
-    }
+    // Note: Delay removed to prevent watchdog resets
+    // Message will stay on screen until next update cycle
 }
 
 void displayError(String error) {

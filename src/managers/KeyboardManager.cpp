@@ -109,6 +109,19 @@ KeyAction getKeyPress() {
 }
 
 void handleKeyPress(KeyAction key) {
+    // Prevent rapid repeated key presses - debounce to avoid watchdog reset
+    static unsigned long lastKeyHandleTime = 0;
+    static KeyAction lastHandledKey = KEY_NONE;
+    unsigned long currentTime = millis();
+    
+    // If same key pressed within 200ms, ignore it (prevents holding key from spamming)
+    if (key == lastHandledKey && (currentTime - lastKeyHandleTime) < 200) {
+        return;
+    }
+    
+    lastKeyHandleTime = currentTime;
+    lastHandledKey = key;
+    
     // Check if message overlay is active - highest priority
     extern bool hasMessagesInQueue();
     extern void dismissCurrentMessage();

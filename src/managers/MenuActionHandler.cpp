@@ -87,49 +87,41 @@ void executeMenuAction(String action) {
         processCommand(&SerialBT, "encrypt status");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "status") {
         captureCommandOutput("status");
         processCommand(&SerialBT, "status");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "info") {
         captureCommandOutput("info");
         processCommand(&SerialBT, "info");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "help") {
         captureCommandOutput("help");
         processCommand(&SerialBT, "help");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "gsmstatus") {
         captureCommandOutput("gsmstatus");
         processCommand(&SerialBT, "gsmstatus");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "smsinfo") {
         captureCommandOutput("smsinfo");
         processCommand(&SerialBT, "smsinfo");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "bt") {
         captureCommandOutput("bt");
         processCommand(&SerialBT, "bt");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "lorastatus") {
         captureCommandOutput("lorastatus");
         processCommand(&SerialBT, "lorastatus");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "ackon") {
         processCommand(&SerialBT, "ackon");
         displaySuccess("LoRa ACK enabled");
@@ -141,63 +133,51 @@ void executeMenuAction(String action) {
         processCommand(&SerialBT, "fallback");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "i2cscan") {
         captureCommandOutput("i2cscan");
         processCommand(&SerialBT, "i2cscan");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "keytest") {
         captureCommandOutput("keytest");
         processCommand(&SerialBT, "keytest");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "keyscan") {
         captureCommandOutput("keyscan");
         processCommand(&SerialBT, "keyscan");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "gps_position") {
         captureCommandOutput("gpsinfo");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "gps_satellites") {
         captureCommandOutput("gpsinfo");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "gps_reset" || action == "gpsstop") {
         captureCommandOutput("gpsstop");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "gsm_signal") {
         captureCommandOutput("gsmstatus");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "system_info") {
         captureCommandOutput("info");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "display_settings") {
         captureCommandOutput("info");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "radio_settings") {
         captureCommandOutput("status");
         displayCapturedOutput();
         displayState.inMenu = false;
-        delay(500);
     } else if (action == "debug_mode") {
         displaySuccess("Debug mode toggled");
         displayState.inMenu = false;
-        delay(500);
     }
 }

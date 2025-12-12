@@ -4,6 +4,7 @@
 #include "managers/LoRaManager.h"
 #include "managers/DisplayManager.h"
 #include "managers/KeyboardManager.h"
+#include "esp_task_wdt.h"
 
 // Global instances
 DMR828S dmr(Serial2);
@@ -12,6 +13,12 @@ WalkieTalkieState wtState;
 DemoMode currentMode = MODE_WALKIE_FEATURES;
 
 void initializeSystem() {
+    // Disable watchdog timer to prevent resets during blocking operations
+    disableCore0WDT();
+    #ifdef ESP32
+        disableCore1WDT();
+    #endif
+    
     // Initialize GSM module on Serial1
     Serial1.begin(9600, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
     
