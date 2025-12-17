@@ -146,17 +146,16 @@ void createCommStatusMenu() {
 void createSettingsMenu() {
     displayState.currentMenu.title = "SETTINGS";
     displayState.currentMenu.selectedItem = 0;
-    displayState.currentMenu.itemCount = 9;
+    displayState.currentMenu.itemCount = 8;
     
     displayState.currentMenu.items[0] = {"Send SMS", "sms_menu", true};
     displayState.currentMenu.items[1] = {"Set Channel", "input_channel", false};
     displayState.currentMenu.items[2] = {"Set Volume", "input_volume", false};
-    displayState.currentMenu.items[3] = {"Set Frequency", "input_frequency", false};
-    displayState.currentMenu.items[4] = {"GSM Phone", "input_gsmphone", false};
-    displayState.currentMenu.items[5] = {"LoRa Config", "lora_menu", true};
-    displayState.currentMenu.items[6] = {"Encryption", "encryption_menu", true};
-    displayState.currentMenu.items[7] = {"Debug Tools", "debug_menu", true};
-    displayState.currentMenu.items[8] = {"Back", "back", false};
+    displayState.currentMenu.items[3] = {"GSM Phone", "input_gsmphone", false};
+    displayState.currentMenu.items[4] = {"LoRa Config", "lora_menu", true};
+    displayState.currentMenu.items[5] = {"Encryption", "encryption_menu", true};
+    displayState.currentMenu.items[6] = {"Debug Tools", "debug_menu", true};
+    displayState.currentMenu.items[7] = {"Back", "back", false};
 }
 
 void createLoRaMenu() {
@@ -226,6 +225,7 @@ void navigateDown() {
 }
 
 void selectMenuItem() {
+    yield(); // Prevent watchdog timeout
     MenuItem selectedItem = displayState.currentMenu.items[displayState.currentMenu.selectedItem];
     
     if (selectedItem.isSubmenu) {
@@ -234,6 +234,8 @@ void selectMenuItem() {
             displayState.menuStack[displayState.menuStackDepth] = displayState.currentMenu;
             displayState.menuStackDepth++;
         }
+        
+        yield(); // Prevent watchdog timeout
         
         // Load submenu
         if (selectedItem.action == "tracker_menu") {
@@ -252,6 +254,7 @@ void selectMenuItem() {
             createDebugMenu();
         }
         
+        yield(); // Prevent watchdog timeout
         showMenu();
     } else {
         executeMenuAction(selectedItem.action);

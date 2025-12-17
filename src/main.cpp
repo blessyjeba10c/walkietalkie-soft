@@ -23,8 +23,8 @@ unsigned long lastBTKeepAlive = 0;
 #define GSM_CHECK_INTERVAL        5000  // 5 seconds - SMS queue check (reduced frequency)
 #define LORA_CHECK_INTERVAL       30    // 30ms - LoRa message check
 #define BLUETOOTH_UPDATE_INTERVAL 0     // 0ms - always check (highest priority)
-#define DISPLAY_UPDATE_INTERVAL   500   // 500ms - display refresh (reduced to avoid I2C conflicts)
-#define KEYBOARD_SCAN_INTERVAL    60    // 60ms - keyboard input (slower to reduce I2C conflicts)
+#define DISPLAY_UPDATE_INTERVAL   100   // 100ms - display refresh (faster response)
+#define KEYBOARD_SCAN_INTERVAL    20    // 20ms - keyboard input (faster response)
 #define BT_KEEPALIVE_INTERVAL     15000 // 15 seconds - heartbeat
 
 void setup() {

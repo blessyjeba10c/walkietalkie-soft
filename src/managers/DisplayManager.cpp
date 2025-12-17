@@ -28,7 +28,11 @@ void initializeDisplay() {
     u8g2.drawStr(0, 60, "Use keypad to navigate");
     u8g2.sendBuffer();
     
-    delay(2000);
+    // Non-blocking startup delay
+    unsigned long startupTime = millis();
+    while (millis() - startupTime < 2000) {
+        yield(); // Allow other tasks to run
+    }
     
     // Initialize menu system
     initializeMenus();

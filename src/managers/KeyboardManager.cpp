@@ -48,7 +48,7 @@ void scanKeyboard() {
     if (!keyboardState.initialized) return;
     
     static unsigned long lastScan = 0;
-    if (millis() - lastScan < 50) return; // Slower scan - 50ms to reduce I2C conflicts
+    if (millis() - lastScan < 15) return; // Fast scan - 15ms for responsive keyboard
     lastScan = millis();
     
     yield(); // Critical: yield before I2C operations
