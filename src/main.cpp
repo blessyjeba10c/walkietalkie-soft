@@ -1,3 +1,4 @@
+
 #include <Arduino.h>
 #include "WalkieTalkie.h"
 #include "managers/GPSManager.h"
@@ -6,26 +7,108 @@
 #include "CommandProcessor.h"
 #include "managers/DisplayManager.h"
 #include "managers/KeyboardManager.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-// Timing variables for non-blocking delays
-unsigned long lastDMRUpdate = 0;
-unsigned long lastGPSUpdate = 0;
-unsigned long lastGSMCheck = 0;
-unsigned long lastLoRaCheck = 0;
-unsigned long lastBluetoothUpdate = 0;
-unsigned long lastDisplayUpdate = 0;
-unsigned long lastKeyboardScan = 0;
-unsigned long lastBTKeepAlive = 0;
 
-// Update intervals (milliseconds)
-#define DMR_UPDATE_INTERVAL       5     // 5ms - high frequency for radio
-#define GPS_UPDATE_INTERVAL       200   // 200ms - GPS parsing (reduced frequency)
-#define GSM_CHECK_INTERVAL        5000  // 5 seconds - SMS queue check (reduced frequency)
-#define LORA_CHECK_INTERVAL       30    // 30ms - LoRa message check
-#define BLUETOOTH_UPDATE_INTERVAL 0     // 0ms - always check (highest priority)
-#define DISPLAY_UPDATE_INTERVAL   100   // 100ms - display refresh (faster response)
-#define KEYBOARD_SCAN_INTERVAL    20    // 20ms - keyboard input (faster response)
-#define BT_KEEPALIVE_INTERVAL     15000 // 15 seconds - heartbeat
+// Task handles (optional, for control)
+TaskHandle_t keyboardTaskHandle = NULL;
+TaskHandle_t displayTaskHandle = NULL;
+TaskHandle_t gpsTaskHandle = NULL;
+TaskHandle_t loraTaskHandle = NULL;
+TaskHandle_t gsmTaskHandle = NULL;
+TaskHandle_t dmrTaskHandle = NULL;
+TaskHandle_t btTaskHandle = NULL;
+
+// Task intervals (ms)
+#define KEYBOARD_TASK_INTERVAL    10
+#define DISPLAY_TASK_INTERVAL     50
+#define GPS_TASK_INTERVAL         200
+#define LORA_TASK_INTERVAL        30
+#define GSM_TASK_INTERVAL         5000
+#define DMR_TASK_INTERVAL         5
+#define BT_TASK_INTERVAL          10
+#define BT_KEEPALIVE_INTERVAL     15000
+
+void keyboardTask(void *pvParameters) {
+    while (1) {
+        scanKeyboard();
+        vTaskDelay(pdMS_TO_TICKS(KEYBOARD_TASK_INTERVAL));
+    }
+}
+
+void displayTask(void *pvParameters) {
+    while (1) {
+        updateDisplay();
+        vTaskDelay(pdMS_TO_TICKS(DISPLAY_TASK_INTERVAL));
+    }
+}
+
+void gpsTask(void *pvParameters) {
+    while (1) {
+        readGPS();
+        handleContinuousGPS();
+        vTaskDelay(pdMS_TO_TICKS(GPS_TASK_INTERVAL));
+    }
+}
+
+void loraTask(void *pvParameters) {
+    while (1) {
+        checkLoRaMessages();
+        vTaskDelay(pdMS_TO_TICKS(LORA_TASK_INTERVAL));
+    }
+}
+
+void gsmTask(void *pvParameters) {
+    while (1) {
+        checkIncomingGSMSMS();
+        vTaskDelay(pdMS_TO_TICKS(GSM_TASK_INTERVAL));
+    }
+}
+
+void dmrTask(void *pvParameters) {
+    while (1) {
+        dmr.update();
+        // Run mode-specific DMR handling
+        switch (currentMode) {
+            case MODE_BASIC_TEST:
+                loopBasicTest();
+                break;
+            case MODE_WALKIE_FEATURES:
+                loopWalkieFeatures();
+                break;
+            case MODE_LOW_LEVEL:
+                loopLowLevel();
+                break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(DMR_TASK_INTERVAL));
+    }
+}
+
+void btTask(void *pvParameters) {
+    static unsigned long lastBTKeepAlive = 0;
+    static uint32_t lastHeap = 0;
+    while (1) {
+        handleBluetoothCommands();
+        unsigned long now = millis();
+        if (now - lastBTKeepAlive >= BT_KEEPALIVE_INTERVAL) {
+            lastBTKeepAlive = now;
+            if (SerialBT.hasClient()) {
+                SerialBT.write(0); // Send null byte as heartbeat
+            }
+            uint32_t freeHeap = ESP.getFreeHeap();
+            if (lastHeap > 0 && freeHeap < lastHeap - 5000) {
+                SerialBT.print("⚠️ Heap dropped: ");
+                SerialBT.print(lastHeap);
+                SerialBT.print(" -> ");
+                SerialBT.println(freeHeap);
+            }
+            lastHeap = freeHeap;
+        }
+        vTaskDelay(pdMS_TO_TICKS(BT_TASK_INTERVAL));
+    }
+}
+
 
 void setup() {
     // Initialize all system components
@@ -47,84 +130,21 @@ void setup() {
     // Show available commands
     showCommands();
     
-    SerialBT.println("🚀 System initialized (No RTOS - Sequential Loop)");
+    SerialBT.println("🚀 System initialized (RTOS Mode)");
     SerialBT.println("✅ Bluetooth should be stable now!");
+
+    // Create tasks with priorities (higher number = higher priority)
+    xTaskCreatePinnedToCore(keyboardTask, "KeyboardTask", 2048, NULL, 3, &keyboardTaskHandle, 1);
+    xTaskCreatePinnedToCore(displayTask,  "DisplayTask",  2048, NULL, 2, &displayTaskHandle, 1);
+    xTaskCreatePinnedToCore(gpsTask,      "GPSTask",      2048, NULL, 1, &gpsTaskHandle, 1);
+    xTaskCreatePinnedToCore(loraTask,     "LoRaTask",     2048, NULL, 2, &loraTaskHandle, 1);
+    xTaskCreatePinnedToCore(gsmTask,      "GSMTask",      2048, NULL, 1, &gsmTaskHandle, 1);
+    xTaskCreatePinnedToCore(dmrTask,      "DMRTask",      4096, NULL, 2, &dmrTaskHandle, 1);
+    xTaskCreatePinnedToCore(btTask,       "BTTask",       2048, NULL, 2, &btTaskHandle, 1);
 }
 
+
 void loop() {
-    unsigned long currentTime = millis();
-    
-    // Bluetooth Update - HIGHEST PRIORITY (always check)
-    handleBluetoothCommands();
-    
-    // Keyboard Scan - HIGH PRIORITY (20ms)
-    if (currentTime - lastKeyboardScan >= KEYBOARD_SCAN_INTERVAL) {
-        lastKeyboardScan = currentTime;
-        scanKeyboard();
-    }
-    
-    // DMR Radio Update (5ms)
-    if (currentTime - lastDMRUpdate >= DMR_UPDATE_INTERVAL) {
-        lastDMRUpdate = currentTime;
-        dmr.update();
-        
-        // Run mode-specific DMR handling
-        switch (currentMode) {
-            case MODE_BASIC_TEST:
-                loopBasicTest();
-                break;
-            case MODE_WALKIE_FEATURES:
-                loopWalkieFeatures();
-                break;
-            case MODE_LOW_LEVEL:
-                loopLowLevel();
-                break;
-        }
-    }
-    
-    // LoRa Message Check (30ms)
-    if (currentTime - lastLoRaCheck >= LORA_CHECK_INTERVAL) {
-        lastLoRaCheck = currentTime;
-        checkLoRaMessages();
-    }
-    
-    // GPS Update (200ms)
-    if (currentTime - lastGPSUpdate >= GPS_UPDATE_INTERVAL) {
-        lastGPSUpdate = currentTime;
-        readGPS();
-        handleContinuousGPS();
-    }
-    
-    // Display Update (300ms)
-    if (currentTime - lastDisplayUpdate >= DISPLAY_UPDATE_INTERVAL) {
-        lastDisplayUpdate = currentTime;
-        updateDisplay();
-    }
-    
-    // GSM SMS Check (5 seconds - lowest priority)
-    if (currentTime - lastGSMCheck >= GSM_CHECK_INTERVAL) {
-        lastGSMCheck = currentTime;
-        checkIncomingGSMSMS();
-    }
-    
-    // Bluetooth Keep-Alive (15 seconds)
-    if (currentTime - lastBTKeepAlive >= BT_KEEPALIVE_INTERVAL) {
-        lastBTKeepAlive = currentTime;
-        if (SerialBT.hasClient()) {
-            SerialBT.write(0); // Send null byte as heartbeat
-        }
-        // Monitor heap to detect memory leaks
-        static uint32_t lastHeap = 0;
-        uint32_t freeHeap = ESP.getFreeHeap();
-        if (lastHeap > 0 && freeHeap < lastHeap - 5000) {
-            SerialBT.print("⚠️ Heap dropped: ");
-            SerialBT.print(lastHeap);
-            SerialBT.print(" -> ");
-            SerialBT.println(freeHeap);
-        }
-        lastHeap = freeHeap;
-    }
-    
-    // Yield to prevent task watchdog issues
-    yield();
+    // Empty: all logic is handled by RTOS tasks
+    vTaskDelete(NULL);
 }

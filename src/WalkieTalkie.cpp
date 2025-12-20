@@ -31,7 +31,7 @@ void initializeSystem() {
     Serial1.begin(9600, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
     
     // Initialize Bluetooth with aggressive keep-alive settings
-    SerialBT.begin("WalkieTalkie"); // Bluetooth device name
+    SerialBT.begin("Megatron1"); // Bluetooth device name
     SerialBT.println("\n=== ESP32 Walkie-Talkie Starting ===");
     SerialBT.print("Free heap: ");
     SerialBT.println(ESP.getFreeHeap());

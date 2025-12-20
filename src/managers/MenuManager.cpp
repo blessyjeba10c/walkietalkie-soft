@@ -144,18 +144,17 @@ void createCommStatusMenu() {
 }
 
 void createSettingsMenu() {
+    yield(); // Prevent watchdog timeout
     displayState.currentMenu.title = "SETTINGS";
     displayState.currentMenu.selectedItem = 0;
-    displayState.currentMenu.itemCount = 8;
+    displayState.currentMenu.itemCount = 6;
     
     displayState.currentMenu.items[0] = {"Send SMS", "sms_menu", true};
     displayState.currentMenu.items[1] = {"Set Channel", "input_channel", false};
     displayState.currentMenu.items[2] = {"Set Volume", "input_volume", false};
-    displayState.currentMenu.items[3] = {"GSM Phone", "input_gsmphone", false};
-    displayState.currentMenu.items[4] = {"LoRa Config", "lora_menu", true};
-    displayState.currentMenu.items[5] = {"Encryption", "encryption_menu", true};
-    displayState.currentMenu.items[6] = {"Debug Tools", "debug_menu", true};
-    displayState.currentMenu.items[7] = {"Back", "back", false};
+    displayState.currentMenu.items[3] = {"LoRa Config", "lora_menu", true};
+    displayState.currentMenu.items[4] = {"Debug Tools", "debug_menu", true};
+    displayState.currentMenu.items[5] = {"Back", "back", false};
 }
 
 void createLoRaMenu() {
@@ -171,6 +170,7 @@ void createLoRaMenu() {
 }
 
 void showMenu() {
+    yield(); // Prevent watchdog timeout
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tf);
     

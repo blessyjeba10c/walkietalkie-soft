@@ -9,6 +9,8 @@ extern DisplayState displayState;
 extern BluetoothSerial SerialBT;
 
 void executeMenuAction(String action) {
+    yield(); // Prevent watchdog timeout
+    
     // Handle input actions
     if (action.startsWith("input_")) {
         if (action == "input_call") {
