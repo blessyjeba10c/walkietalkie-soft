@@ -1,3 +1,60 @@
+# ESP32 Walkie-Talkie System
+
+## Overview
+This project implements a dual-mode (TX/RX) walkie-talkie system on ESP32, supporting LoRa and GSM communication, GPS tracking, Bluetooth Classic logging, and a 4x4 matrix keyboard (I2C/PCF8574) for all configuration and control. The system is designed for field use and can be dynamically switched between transmission and reception modes without re-uploading firmware.
+
+## Hardware Requirements
+- ESP32 Dev Board
+- LoRa module (SX127x, SPI)
+- GSM module (SIM800L, UART)
+- GPS module (UART0)
+- 4x4 Matrix Keyboard (I2C via PCF8574)
+- OLED Display (I2C, optional)
+
+## Features
+- **TX/RX Mode Switching:** Use the keyboard to switch between transmission and reception modes.
+- **Link Selection:** In TX mode, select LoRa or GSM as the transmission link using the keyboard.
+- **Bluetooth Serial Logging:** All system activity, status, and configuration are printed to Bluetooth Serial.
+- **Configurable GSM Number:** Set the GSM phone number via Bluetooth command: `SETNUM:xxxxxxxxxx`.
+- **Non-blocking Operation:** All timing is handled with `millis()`, ensuring responsive operation.
+- **Display Integration:** System status and messages are shown on the OLED display.
+
+## Keyboard Controls
+- **KEY_A:** Switch between TX and RX modes.
+- **KEY_B:** Switch between LoRa and GSM link (TX mode only).
+- **KEY_C/KEY_D:** Reserved for future features (customize as needed).
+
+## Operation
+### TX Mode
+- Continuously reads GPS data.
+- Sends GPS coordinates via selected link (LoRa or GSM) every 5 seconds.
+- All transmissions and GPS status are logged to Bluetooth and display.
+
+### RX Mode
+- Listens for incoming data from LoRa and GSM.
+- Accepts payload input from Bluetooth terminal.
+- Displays received data and source (LoRa/GSM) on Bluetooth and display.
+
+## Bluetooth Commands
+- `SETNUM:xxxxxxxxxx` — Set the GSM phone number for SMS transmission.
+- All status, mode, and link changes are reported automatically.
+
+## File Structure
+- `src/main.cpp` — Main firmware implementing all logic.
+- `src/managers/` — Hardware abstraction for display, keyboard, GPS, GSM, LoRa.
+- `include/` — Header files for shared declarations.
+
+## Customization
+- Adjust key mappings in `KeyboardManager.cpp` as needed for your hardware.
+- Expand RX/TX logic and display features as required.
+
+## License
+MIT License
+
+---
+
+**For wiring diagrams, advanced configuration, or troubleshooting, see the code comments or contact the project maintainer.**
+
 # ESP32 DMR Walkie-Talkie System
 
 A comprehensive ESP32-based tactical communication system featuring DMR radio, GPS tracking, GSM fallback, LoRa mesh networking, and Bluetooth control. Built for military/tactical environments with encryption, emergency features, and modular architecture.

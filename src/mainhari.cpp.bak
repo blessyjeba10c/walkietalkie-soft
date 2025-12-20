@@ -1,0 +1,192 @@
+#include "WalkieTalkie.h"
+#include "managers/DisplayManager.h"
+#include "managers/KeyboardManager.h"
+#include "managers/GPSManager.h"
+#include "managers/GSMManager.h"
+#include "managers/LoRaManager.h"
+#include "commands/LoRaCommands.h"
+#include "commands/GSMCommands.h"
+
+enum DeviceMode { MODE_TX, MODE_RX };
+enum TxLinkMode { LINK_LORA, LINK_GSM };
+
+DeviceMode deviceMode = MODE_TX;
+TxLinkMode txLinkMode = LINK_LORA;
+String gsmPhoneNumber = "+91XXXXXXXXXX";
+unsigned long lastKeyboardScan = 0, lastStatus = 0, lastTX = 0, lastLoRaCheck = 0, lastGSMCheck = 0, lastBTCheck = 0;
+String lastPayload = "";
+
+void printStatusBT() {
+    SerialBT.print("MODE: ");
+    SerialBT.print(deviceMode == MODE_TX ? "TX" : "RX");
+    if (deviceMode == MODE_TX) {
+        SerialBT.print(" | TX LINK: ");
+        SerialBT.print(txLinkMode == LINK_LORA ? "LoRa" : "GSM");
+        if (gpsState.hasValidFix) {
+            SerialBT.print(" | GPS: ");
+            SerialBT.print(gpsState.latitude, 6);
+            SerialBT.print(",");
+            SerialBT.print(gpsState.longitude, 6);
+        } else {
+            SerialBT.print(" | GPS: NO FIX");
+        }
+    } else {
+        SerialBT.print(" | Awaiting payload from BT terminal...");
+    }
+    SerialBT.println();
+}
+
+void updateStatusOnDisplay() {
+    String line1 = "MODE: ";
+    line1 += (deviceMode == MODE_TX) ? "TX" : "RX";
+    line1 += " | LINK: ";
+    line1 += (txLinkMode == LINK_LORA) ? "LoRa" : "GSM";
+    showMessage(line1, 0); // Show at top, duration 0 for persistent
+}
+
+void handleKeyboard() {
+    static unsigned long lastKeyPressTime = 0;
+    const unsigned long debounceDelay = 200; // 200ms debounce delay
+    static DeviceMode previousDeviceMode = deviceMode;
+    static TxLinkMode previousTxLinkMode = txLinkMode;
+
+    unsigned long now = millis();
+    scanKeyboard();
+    KeyAction key = keyboardState.lastKey;
+
+    // Ensure valid key press and debounce logic
+    if (key != KEY_NONE && now - lastKeyPressTime > debounceDelay) {
+        if (key == KEY_A) {
+            deviceMode = (deviceMode == MODE_TX) ? MODE_RX : MODE_TX;
+            if (deviceMode != previousDeviceMode) {
+                SerialBT.println(deviceMode == MODE_TX ? "Switched to TX mode" : "Switched to RX mode");
+                printStatusBT();
+                updateStatusOnDisplay();
+                previousDeviceMode = deviceMode;
+            }
+        } else if (key == KEY_B && deviceMode == MODE_TX) {
+            txLinkMode = (txLinkMode == LINK_LORA) ? LINK_GSM : LINK_LORA;
+            if (txLinkMode != previousTxLinkMode) {
+                SerialBT.println(txLinkMode == LINK_LORA ? "TX Link: LoRa" : "TX Link: GSM");
+                printStatusBT();
+                updateStatusOnDisplay();
+                previousTxLinkMode = txLinkMode;
+            }
+        }
+        lastKeyPressTime = now;
+    }
+}
+
+void handleBluetoothInput() {
+    if (SerialBT.available()) {
+        String command = SerialBT.readStringUntil('\n');
+        command.trim();
+        if (command.startsWith("SETNUM:")) {
+            gsmPhoneNumber = command.substring(7);
+            SerialBT.println("GSM phone number set to: " + gsmPhoneNumber);
+        } else if (deviceMode == MODE_RX && command.length() > 0) {
+            lastPayload = command;
+            SerialBT.println("[BT RX] Payload: " + command);
+        }
+    }
+}
+
+void handleGPS() {
+    // Already handled by GPSManager, just ensure it's called regularly if needed
+}
+
+void handleLoRaTX(String payload) {
+    if (sendLoRaMessage(payload)) {
+        SerialBT.println("[LoRa TX] " + payload);
+        addMessage("LoRa TX: " + payload);
+        showMessage("LoRa TX: " + payload, 2000);
+    } else {
+        SerialBT.println("[LoRa TX] ERROR sending");
+    }
+}
+
+void handleGSMTX(String payload) {
+    // Use your GSM send function
+    sendGSMFallbackSMS(gsmPhoneNumber, payload);
+    SerialBT.println("[GSM TX] " + payload);
+    addMessage("GSM TX: " + payload);
+    showMessage("GSM TX: " + payload, 2000);
+}
+
+void handleLoRaRX() {
+    // Use your LoRa receive logic
+    // Example: if (loraReliable.available()) { String msg = loraReliable.readString(); ... }
+}
+
+void handleGSMRX() {
+    // Use your GSM receive logic
+}
+
+void setup() {
+    Serial.begin(115200);
+    SerialBT.begin("HariSystem");
+    SerialBT.println("\n=== System Booting ===");
+    initializeDisplay();
+    initializeKeyboard();
+    initializeGPS();
+    initializeLoRa();
+    Serial1.begin(9600, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
+    initializeGSM();
+    printStatusBT();
+    showMessage("BOOTING", 1500); // Show boot message once for 1.5s
+    delay(1500);
+    updateStatusOnDisplay();
+}
+
+void loop() {
+    unsigned long now = millis();
+
+    // Always listen for keyboard input
+    if (now - lastKeyboardScan > 20) {
+        handleKeyboard();
+        lastKeyboardScan = now;
+    }
+
+    // Handle Bluetooth input
+    if (now - lastBTCheck > 100) {
+        handleBluetoothInput();
+        lastBTCheck = now;
+    }
+
+    // Update status on display periodically
+    if (now - lastStatus > 2000) {
+        updateStatusOnDisplay();
+        lastStatus = now;
+    }
+
+    // Transmit data in TX mode
+    if (deviceMode == MODE_TX && now - lastTX > 10000) {
+        String payload;
+        if (gpsState.hasValidFix) {
+            payload = String("GPS: ") + String(gpsState.latitude, 6) + "," + String(gpsState.longitude, 6);
+        } else {
+            payload = "GPS: 29.3777,78.6576"; // Dummy coordinates if no fix
+        }
+        if (txLinkMode == LINK_LORA) {
+            handleLoRaTX(payload);
+        } else {
+            handleGSMTX(payload);
+        }
+        lastTX = now;
+    }
+
+    // Listen for data in RX mode
+    if (deviceMode == MODE_RX) {
+        if (now - lastLoRaCheck > 200) {
+            handleLoRaRX();
+            lastLoRaCheck = now;
+        }
+        if (now - lastGSMCheck > 200) {
+            handleGSMRX();
+            lastGSMCheck = now;
+        }
+    }
+
+    // Continuously update the display
+    updateDisplay();
+}
